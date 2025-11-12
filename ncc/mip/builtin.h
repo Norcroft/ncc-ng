@@ -69,7 +69,7 @@ extern Binder *datasegment, *codesegment, *constdatasegment, *ddtorsegment;
 #ifdef TARGET_HAS_BSS
 extern Binder *bsssegment;
 #endif
-Binder *extablesegment, *exhandlersegment;
+extern Binder *extablesegment, *exhandlersegment;
 extern Symstr *mainsym, *setjmpsym, *assertsym, *first_arg_sym, *last_arg_sym;
 #define DUFF_SYMSTR ((Symstr*)DUFF_ADDR)
 #ifdef CPLUSPLUS

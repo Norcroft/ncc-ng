@@ -1896,7 +1896,7 @@ int main(int argc, char **argv) {
   debug = NULL;
   constraintfns = exprnfns = NULL;
 
-  if (StrEq(argv[1], "-d") || StrEq(argv[1], "-D")) {
+  if (argc > 2 && (StrEq(argv[1], "-d") || StrEq(argv[1], "-D"))) {
     debugbuf = (char *)malloc(DebugSize);
     debugix = 0;
     if (StrEq(argv[2], "-")) {

@@ -334,7 +334,7 @@ static void sstart_string_char(char *s)
     errmsg.compressed = 0;
 }
 
-static void snprintf(char *b, msg_t errcode, ...)
+static void misc_snprintf(char *b, msg_t errcode, ...)
 {
   va_list a;
 #ifndef NLS
@@ -386,34 +386,34 @@ void summarise(void)
 
 #ifndef COMPILING_ON_MPW
     switch (warncount) {
-    case 0: snprintf(s, misc_message_sum1_zero,curlex.fl.f); break;
-    case 1: snprintf(s, misc_message_sum1_sing,curlex.fl.f); break;
-    default:snprintf(s, misc_message_sum1(curlex.fl.f, (long)warncount)); break;
+    case 0: misc_snprintf(s, misc_message_sum1_zero,curlex.fl.f); break;
+    case 1: misc_snprintf(s, misc_message_sum1_sing,curlex.fl.f); break;
+    default:misc_snprintf(s, misc_message_sum1(curlex.fl.f, (long)warncount)); break;
     }
 #else
     switch (warncount) {
-    case 0: snprintf(s, misc_message_sum1_zero_mpw,curlex.fl.f); break;
-    case 1: snprintf(s, misc_message_sum1_sing_mpw,curlex.fl.f); break;
-    default:snprintf(s, misc_message_sum1_mpw(curlex.fl.f, (long)warncount)); break;
+    case 0: misc_snprintf(s, misc_message_sum1_zero_mpw,curlex.fl.f); break;
+    case 1: misc_snprintf(s, misc_message_sum1_sing_mpw,curlex.fl.f); break;
+    default:misc_snprintf(s, misc_message_sum1_mpw(curlex.fl.f, (long)warncount)); break;
     }
 #endif
     s += strlen(s);
     if (xwarncount && !(feature & FEATURE_PCC)) {
-      snprintf(s, misc_message_sum2, (long)xwarncount);
+      misc_snprintf(s, misc_message_sum2, (long)xwarncount);
       s += strlen(s);
     }
 
     switch (recovercount) {
-    case 0:  snprintf(s, misc_message_sum3_zero); break;
-    case 1:  snprintf(s, misc_message_sum3_sing); break;
-    default: snprintf(s, misc_message_sum3,(long)recovercount); break;
+    case 0:  misc_snprintf(s, misc_message_sum3_zero); break;
+    case 1:  misc_snprintf(s, misc_message_sum3_sing); break;
+    default: misc_snprintf(s, misc_message_sum3,(long)recovercount); break;
     }
     s += strlen(s);
 
     switch (errorcount) {
-    case 0:  snprintf(s, misc_message_sum5_zero); break;
-    case 1:  snprintf(s, misc_message_sum5_sing); break;
-    default: snprintf(s, misc_message_sum5,(long)errorcount); break;
+    case 0:  misc_snprintf(s, misc_message_sum5_zero); break;
+    case 1:  misc_snprintf(s, misc_message_sum5_sing); break;
+    default: misc_snprintf(s, misc_message_sum5,(long)errorcount); break;
     }
 
     { backchat_Diagnostic bd;
@@ -452,26 +452,26 @@ void cc_announce_error(char *s, int severity, char const *file, int32 line)
     reason = msg_lookup(msg_severity);
   }
   if (file == NULL) {
-    snprintf(s, misc_message_nofile(reason));
+    misc_snprintf(s, misc_message_nofile(reason));
   } else if (line == -1) {
 #ifndef TARGET_IS_UNIX
 #  ifndef COMPILING_ON_MPW
-    snprintf(s, misc_message_nolineno(file, reason));
+    misc_snprintf(s, misc_message_nolineno(file, reason));
 #  else
-    snprintf(s, misc_message_nolineno_mpw(file, reason));
+    misc_snprintf(s, misc_message_nolineno_mpw(file, reason));
 #  endif
 #else
-    snprintf(s, misc_message_nolineno_unix(file, reason));
+    misc_snprintf(s, misc_message_nolineno_unix(file, reason));
 #endif
   } else {
 #ifndef TARGET_IS_UNIX
 #  ifndef COMPILING_ON_MPW
-    snprintf(s, misc_message_lineno(file, (long)line, reason));
+    misc_snprintf(s, misc_message_lineno(file, (long)line, reason));
 #  else
-    snprintf(s, misc_message_lineno_mpw(file, (long)line, reason));
+    misc_snprintf(s, misc_message_lineno_mpw(file, (long)line, reason));
 #  endif
 #else
-    snprintf(s, misc_message_lineno_unix(file, (long)line, reason));
+    misc_snprintf(s, misc_message_lineno_unix(file, (long)line, reason));
 #endif
   }
 }

@@ -559,7 +559,7 @@ static void preprocess_only(void)
 #ifdef  FOR_ACORN
 #ifndef PASCAL
 #ifndef FORTRAN
-int cplusplus_preprocessing(void)
+bool cplusplus_preprocessing(void)
 {
     return (ccom_flags & FLG_PREPROCESS) && cplusplus_flag;
 }
@@ -1182,7 +1182,7 @@ extern int ccom(ToolEnv *t, char const *infile, char const *outfile,
     path_hd = mk_path_element(path_hd, PE_USER, "");
     if (path_hd->link == 0) path_tl = path_hd;
   } else {
-#ifdef FOR_ACORN
+#if defined(FOR_ACORN) && defined(COMPILING_ON_RISCOS)
     /* IDJ: 06-Jun-94. Set desktop "current directory" */
     dde_prefix_init(current);
     dde_sourcefile_init();

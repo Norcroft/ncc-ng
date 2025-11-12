@@ -233,7 +233,7 @@ typedef struct
 #define regs_used(u)    ((u)->use | (u)->def | (u)->corrupt)
 
 /* returns the complete register usage of c */
-extern GetRegisterUsage(const PendingOp *c, RegisterUsage *u);
+extern bool GetRegisterUsage(const PendingOp *c, RegisterUsage *u);
 
 extern char *CheckJopcodeP(const PendingOp *p, CheckJopcode_flags flags);
 

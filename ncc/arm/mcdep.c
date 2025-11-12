@@ -891,6 +891,8 @@ int32 MaxMemOffset(J_OPCODE op)
         case MEM_LL:
             return 0;
     }
+
+    return 0;
 }
 
 
@@ -916,6 +918,8 @@ int32 MemQuantum(J_OPCODE op)
         case MEM_LL:
             return 4;
     }
+
+    return 4;
 }
 
 

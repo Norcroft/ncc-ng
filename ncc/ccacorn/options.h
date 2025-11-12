@@ -38,7 +38,7 @@
 "-bigend, -be    Compile code for big-endian memory",\
 "-apcs [3]<q*>   Specify variant of APCS in use, with one or more qualifiers",\
 "-depend <file>  Write 'make' include file dependency information to <file>",\
-"-throwback      Support error processing by Desktop Tools & other compliant tools",\
+"-throwback      Support error processing by Desktop Tools & other compliant tools",\
 "-desktop <dir>  Set the work directory for the compiler as <dir>",\
 "-C++            Alter cc to compile C++ in conjunction with C++ translator",\
 "",\
