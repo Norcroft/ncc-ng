@@ -1172,9 +1172,11 @@ extern int ccom(ToolEnv *t, char const *infile, char const *outfile,
 #  if defined(FOR_ACORN)
     /* A fault in the shared library forces the use of a */
     /* real buffer. NULL will not do...                  */
+    {
     static char input_buffer[256];
     setvbuf(stdin, input_buffer, _IOLBF, sizeof(input_buffer));
     dde_prefix_init("");
+    }
 #  elif defined(TARGET_IS_ARM) && !defined(OBSOLETE_ARM_NAMES)
     setvbuf(stdin, NULL, _IOLBF, 256);
 #  endif
@@ -1184,7 +1186,7 @@ extern int ccom(ToolEnv *t, char const *infile, char const *outfile,
   } else {
 #if defined(FOR_ACORN) && defined(COMPILING_ON_RISCOS)
     /* IDJ: 06-Jun-94. Set desktop "current directory" */
-    dde_prefix_init(current);
+    dde_prefix_init(infile);
     dde_sourcefile_init();
 #endif
     inputfromtty = NO;

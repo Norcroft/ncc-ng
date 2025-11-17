@@ -97,10 +97,16 @@
                                          /* unset => defaults to host */
 
 #ifdef COMPILING_ON_UNIX
-#   define TARGET_SYSTEM     "RISCiX"
-#   define TARGET_IS_UNIX    1
-#   define NO_INSTORE_FILES  1          /* no in-store headers under Unix.  */
-#   define HOST_WANTS_NO_BANNER 1
+#   ifdef __APPLE__
+#      define TARGET_SYSTEM "macOS"
+#   elif __linux__
+#      define TARGET_SYSTEM "Linux"
+#   else
+#     define TARGET_SYSTEM  "RISCiX"
+#     define TARGET_IS_UNIX    1
+#     define NO_INSTORE_FILES  1          /* no in-store headers under Unix.  */
+#     define HOST_WANTS_NO_BANNER 1
+#   endif
 /* #define TARGET_HAS_DIVREM_FUNCTION 1 -- divide fn also returns remainder.*/
 /* #define TARGET_HAS_DIV_10_FUNCTION 1 -- fast divide by 10                */
                                         /* but not under ARM Unix...        */
