@@ -1,3 +1,4 @@
+
 /* Copyright 2025 Piers Wombwell
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,15 +14,15 @@
  * limitations under the License.
  */
 
-extern char *emit_mnemonic(char *p, const char *mnem, unsigned cond);
-extern char *append_str(char *p, const char *s);
+#pragma once
 
-typedef enum { RegType_Core, RegType_FPA } RegType;
-extern char *append_reg(char *p, unsigned r, RegType type);
-extern char *append_core_reg(char *p, unsigned r);
-extern char *append_immediate(char *p, unsigned32 imm);
+#include "globals.h"
+#include "disass.h"
 
-extern char *emit_mnemonic_with_suffix(char *p,
-                                       const char *base,
-                                       const char *suffix,
-                                       unsigned cond);
+// FPA/FPE disassembler. RISC OS and ARM7500FE-era.
+bool disass_fpa(unsigned32 instr,
+                unsigned32 pc,
+                void *cb_arg,
+                dis_cb_fn cb,
+                char *out);
+

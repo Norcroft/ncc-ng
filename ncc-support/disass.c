@@ -18,15 +18,19 @@
 #include "ampdis.h"
 #include "disass.h"
 #include "disass-arm.h"
+#include "disass-fpa.h"
 
-#if TARGET_HAS_VFP
-#include "disass-vfp.h"
-#endif
-
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
-static const int use_apcs_reg_names = 0;
+#ifndef PRETTY_DISASSEMBLY
+static bool disass_upper_mnemonics = true;
+static bool disass_apcs_reg_names = true;
+#else
+static bool disass_upper_mnemonics = false;
+static bool disass_apcs_reg_names = false;
+#endif
 
 static const char *g_hexprefix = "0x";   // default if not set
 static const char *g_regnames[16];       // kept only to satisfy API
@@ -80,7 +84,7 @@ static const char *const dp_opnames[16] = {
 };
 
 /* Forward declaration for block data transfer helper. */
-static char *append_reglist(char *p, unsigned list);
+static char *append_core_reglist(char *p, unsigned list);
 
 static const int mnemonic_field_width = 16;
 
@@ -94,7 +98,10 @@ char *emit_mnemonic_with_suffix(char *p,
 
     /* Base mnemonic (no suffix yet). */
     for (s = base; *s != '\0'; ++s) {
-        *p++ = *s;
+        char ch = *s;
+        if (!disass_upper_mnemonics)
+            ch = (char)tolower((unsigned char)ch);
+        *p++ = ch;
         ++len;
     }
 
@@ -102,7 +109,10 @@ char *emit_mnemonic_with_suffix(char *p,
     if (cond != 0xE) {
         const char *cc = cond_codes[cond];
         while (*cc != '\0') {
-            *p++ = *cc++;
+            char ch = *cc++;
+            if (!disass_upper_mnemonics)
+                ch = (char)tolower((unsigned char)ch);
+            *p++ = ch;
             ++len;
         }
     }
@@ -110,7 +120,10 @@ char *emit_mnemonic_with_suffix(char *p,
     /* Optional suffix, e.g. ".F64" or ".F64.S32". */
     if (suffix && *suffix) {
         for (s = suffix; *s != '\0'; ++s) {
-            *p++ = *s;
+            char ch = *s;
+            if (!disass_upper_mnemonics)
+                ch = (char)tolower((unsigned char)ch);
+            *p++ = ch;
             ++len;
         }
     }
@@ -135,34 +148,63 @@ char *emit_mnemonic(char *p, const char *mnem, unsigned cond)
     return emit_mnemonic_with_suffix(p, mnem, NULL, cond);
 }
 
-static const char *fallback_regname(unsigned r)
+static const char *regname(unsigned r, RegType type)
 {
-    static const char *const defaults[16] = {
-        "r0","r1","r2","r3",
-        "r4","r5","r6","r7",
-        "r8","r9","r10","r11",
-        "r12","sp","lr","pc"
-    };
+    // Old Norcroft would always output lowercase register names.
 
-    if (r >= 16)
-        return "r?";
+    // Most registers are a prefix followed by the number.
+    // Return a short static buffer containing the value.
+    static char buf[8];
 
-    if (use_apcs_reg_names && g_regnames[r])
-        return g_regnames[r];
+    char prefix = 'r';
 
-    return defaults[r];
+    if (type == RegType_Core) {
+        if (disass_apcs_reg_names && g_regnames[r])
+            return g_regnames[r];
+
+        // else use 'r<num>' except for 'fp', 'ip', 'sp', 'lr' and 'pc'.
+        if (r == 11)
+            return "fp";
+        else if (r == 12)
+            return "ip";
+        else if (r == 13)
+            return "sp";
+        else if (r == 14)
+            return "lr";
+        else if (r == 15)
+            return "pc";
+
+        prefix = 'r';
+    }
+
+    if (type == RegType_FPA)
+        prefix = 'f';
+
+    // no snprintf in old C libs.
+    sprintf(buf, "%c%u", prefix, r);
+
+    return buf;
 }
 
 char *append_str(char *p, const char *s)
 {
-    while (*s) *p++ = *s++;
+    while (*s)
+        *p++ = *s++;
+
     *p = '\0';
     return p;
 }
 
-char *append_reg(char *p, unsigned r)
+char *append_reg(char *p, unsigned r, RegType type)
 {
-    return append_str(p, fallback_regname(r));
+    const char *name = regname(r, type);
+
+    return append_str(p, name);
+}
+
+char *append_core_reg(char *p, unsigned r)
+{
+    return append_reg(p, r, RegType_Core);
 }
 
 char *append_immediate(char *p, unsigned32 imm)
@@ -210,18 +252,20 @@ static char *decode_shifted_reg(char *p, unsigned32 instr)
     unsigned shift_type = BITS(instr, 6, 5);
     unsigned reg_shift = BITS(instr, 4, 4);
 
-    p = append_reg(p, rm);
+    p = append_core_reg(p, rm);
 
     if (reg_shift) {
         /* Rm, <shift> Rs form – keep simple for now. */
         unsigned rs = BITS(instr, 11, 8);
-        const char *stype = (shift_type == 0) ? "LSL" :
-                            (shift_type == 1) ? "LSR" :
-                            (shift_type == 2) ? "ASR" : "ROR";
+        const char *stype =
+            (shift_type == 0) ? (disass_upper_mnemonics ? "LSL" : "lsl") :
+            (shift_type == 1) ? (disass_upper_mnemonics ? "LSR" : "lsr") :
+            (shift_type == 2) ? (disass_upper_mnemonics ? "ASR" : "asr") :
+                                 (disass_upper_mnemonics ? "ROR" : "ror");
         p = append_str(p, ", ");
         p = append_str(p, stype);
         p = append_str(p, " ");
-        p = append_reg(p, rs);
+        p = append_core_reg(p, rs);
         return p;
     }
 
@@ -230,11 +274,13 @@ static char *decode_shifted_reg(char *p, unsigned32 instr)
         if (shift_type == 0) {
             return p; /* plain Rm */
         } else if (shift_type == 3) {
-            p = append_str(p, ", RRX");
+            p = append_str(p, disass_upper_mnemonics ? ", RRX" : ", rrx");
             return p;
         } else {
             /* LSR/ASR #32 */
-            const char *stype = (shift_type == 1) ? "LSR" : "ASR";
+            const char *stype =
+                (shift_type == 1) ? (disass_upper_mnemonics ? "LSR" : "lsr") :
+                                    (disass_upper_mnemonics ? "ASR" : "asr");
             p = append_str(p, ", ");
             p = append_str(p, stype);
             p = append_str(p, " #32");
@@ -243,9 +289,11 @@ static char *decode_shifted_reg(char *p, unsigned32 instr)
     }
 
     {
-        const char *stype = (shift_type == 0) ? "LSL" :
-                            (shift_type == 1) ? "LSR" :
-                            (shift_type == 2) ? "ASR" : "ROR";
+        const char *stype =
+            (shift_type == 0) ? (disass_upper_mnemonics ? "LSL" : "lsl") :
+            (shift_type == 1) ? (disass_upper_mnemonics ? "LSR" : "lsr") :
+            (shift_type == 2) ? (disass_upper_mnemonics ? "ASR" : "asr") :
+                                 (disass_upper_mnemonics ? "ROR" : "ror");
         p = append_str(p, ", ");
         p = append_str(p, stype);
         {
@@ -285,17 +333,17 @@ static void disass_data_processing(unsigned32 instr,
 
     if (opcode >= 8 && opcode <= 11) {
         /* TST/TEQ/CMP/CMN: op Rn, operand2 */
-        p = append_reg(p, rn);
+        p = append_core_reg(p, rn);
         p = append_str(p, ", ");
     } else if (opcode == 13 || opcode == 15) {
         /* MOV/MVN: op Rd, operand2 */
-        p = append_reg(p, rd);
+        p = append_core_reg(p, rd);
         p = append_str(p, ", ");
     } else {
         /* Normal: op Rd, Rn, operand2 */
-        p = append_reg(p, rd);
+        p = append_core_reg(p, rd);
         p = append_str(p, ", ");
-        p = append_reg(p, rn);
+        p = append_core_reg(p, rn);
         p = append_str(p, ", ");
     }
 
@@ -343,7 +391,7 @@ static void disass_single_data_transfer(unsigned32 instr,
 
     p = emit_mnemonic(p, base, cond);
 
-    p = append_reg(p, rd);
+    p = append_core_reg(p, rd);
     p = append_str(p, ", ");
 
     if (imm) {
@@ -351,18 +399,18 @@ static void disass_single_data_transfer(unsigned32 instr,
         unsigned rm = BITS(instr, 3, 0);
         if (pbit) {
             p = append_str(p, "[");
-            p = append_reg(p, rn);
+            p = append_core_reg(p, rn);
             p = append_str(p, ", ");
             if (!ubit) p = append_str(p, "-");
-            p = append_reg(p, rm);
+            p = append_core_reg(p, rm);
             p = append_str(p, "]");
             if (wbit) p = append_str(p, "!");
         } else {
             p = append_str(p, "[");
-            p = append_reg(p, rn);
+            p = append_core_reg(p, rn);
             p = append_str(p, "], ");
             if (!ubit) p = append_str(p, "-");
-            p = append_reg(p, rm);
+            p = append_core_reg(p, rm);
         }
     } else {
         /* Immediate offset. */
@@ -391,12 +439,12 @@ static void disass_single_data_transfer(unsigned32 instr,
             if (off == 0 && pbit && !wbit) {
                 /* Simple [Rn] – no offset to decorate. */
                 p = append_str(p, "[");
-                p = append_reg(p, rn);
+                p = append_core_reg(p, rn);
                 p = append_str(p, "]");
             } else if (pbit) {
                 /* Pre-indexed: [Rn, #offset] or [Rn, #-offset], with optional writeback. */
                 p = append_str(p, "[");
-                p = append_reg(p, rn);
+                p = append_core_reg(p, rn);
                 p = append_str(p, ", #");
                 {
                     char *cb_start = p;
@@ -419,7 +467,7 @@ static void disass_single_data_transfer(unsigned32 instr,
             } else {
                 /* Post-indexed: [Rn], #offset */
                 p = append_str(p, "[");
-                p = append_reg(p, rn);
+                p = append_core_reg(p, rn);
                 p = append_str(p, "], #");
                 {
                     char *cb_start = p;
@@ -447,12 +495,12 @@ static void disass_single_data_transfer(unsigned32 instr,
 
             if (off == 0 && pbit && !wbit) {
                 p = append_str(p, "[");
-                p = append_reg(p, rn);
+                p = append_core_reg(p, rn);
                 p = append_str(p, "]");
             } else if (pbit) {
                 /* Pre-indexed: [Rn, #+/-imm] */
                 p = append_str(p, "[");
-                p = append_reg(p, rn);
+                p = append_core_reg(p, rn);
                 p = append_str(p, ", #");
                 if (soff < 0)
                     p += sprintf(p, "-%d", abs);
@@ -463,7 +511,7 @@ static void disass_single_data_transfer(unsigned32 instr,
             } else {
                 /* Post-indexed: [Rn], #+/-imm */
                 p = append_str(p, "[");
-                p = append_reg(p, rn);
+                p = append_core_reg(p, rn);
                 p = append_str(p, "], #");
                 if (soff < 0)
                     p += sprintf(p, "-%d", abs);
@@ -521,7 +569,7 @@ static void disass_swi(unsigned32 instr, char *out)
 }
 
 /* Helper: print ARM register list as {r0, r1, ...} with ranges. */
-static char *append_reglist(char *p, unsigned list)
+static char *append_core_reglist(char *p, unsigned list)
 {
     int first = 1;
     int r = 0;
@@ -539,10 +587,10 @@ static char *append_reglist(char *p, unsigned list)
                 *p++ = ',';
                 *p++ = ' ';
             }
-            p = append_reg(p, (unsigned)start);
+            p = append_core_reg(p, (unsigned)start);
             if (end > start) {
                 *p++ = '-';
-                p = append_reg(p, (unsigned)end);
+                p = append_core_reg(p, (unsigned)end);
             }
             first = 0;
             r = end + 1;
@@ -584,13 +632,13 @@ static void disass_block_data_transfer(unsigned32 instr, char *out)
     sprintf(mnem, "%s%s", base, mode);
     p = emit_mnemonic(p, mnem, cond);
 
-    p = append_reg(p, rn);
+    p = append_core_reg(p, rn);
     if (wbit) {
         *p++ = '!';
         *p = '\0';
     }
     p = append_str(p, ", ");
-    p = append_reglist(p, regs);
+    p = append_core_reglist(p, regs);
     if (sbit) {
         *p++ = '^';
         *p = '\0';
@@ -605,6 +653,11 @@ void disass(uint64_t w, uint64_t oldq, const char* buf, void *cb_arg, dis_cb_fn 
 
     /* Default: show raw word as data. */
     sprintf(out, "DCD      %s%.8lX", g_hexprefix, (unsigned long)instr);
+
+    // Try obsolete FPA/FPE disassembler for CP1/CP2 encodings.
+    if (disass_fpa(instr, pc, cb_arg, cb, out)) {
+        return;
+    }
 
     /* BLX (immediate) – shares the branch encoding space but is unconditional.
        For now, leave it as DCD instead of mis-decoding as BLNV. */
@@ -690,12 +743,6 @@ void disass(uint64_t w, uint64_t oldq, const char* buf, void *cb_arg, dis_cb_fn 
         return;
     }
 
-#if TARGET_HAS_VFP
-    /* Try VFP/NEON decoder for coprocessor 10/11 encodings. */
-    if (disass_vfp(instr, pc, cb_arg, cb, out)) {
-        return;
-    }
-#endif
     /* Anything we don't understand is left as the DCD we printed at the top. */
 }
 
@@ -721,14 +768,14 @@ static void disass_multiply(unsigned32 instr, char *out)
 
     /* MUL{S} Rd, Rm, Rs
        MLA{S} Rd, Rm, Rs, Rn */
-    p = append_reg(p, rd);
+    p = append_core_reg(p, rd);
     p = append_str(p, ", ");
-    p = append_reg(p, rm);
+    p = append_core_reg(p, rm);
     p = append_str(p, ", ");
-    p = append_reg(p, rs);
+    p = append_core_reg(p, rs);
     if (acc) {
         p = append_str(p, ", ");
-        p = append_reg(p, rn);
+        p = append_core_reg(p, rn);
     }
 }
 
@@ -756,13 +803,13 @@ static void disass_long_multiply(unsigned32 instr, char *out)
     p = emit_mnemonic(p, mnem, cond);
 
     /* xMULL{S} RdLo, RdHi, Rm, Rs */
-    p = append_reg(p, rdlo);
+    p = append_core_reg(p, rdlo);
     p = append_str(p, ", ");
-    p = append_reg(p, rdhi);
+    p = append_core_reg(p, rdhi);
     p = append_str(p, ", ");
-    p = append_reg(p, rm);
+    p = append_core_reg(p, rm);
     p = append_str(p, ", ");
-    p = append_reg(p, rs);
+    p = append_core_reg(p, rs);
 }
 
 /* ARM halfword & signed-data transfer decoder:
@@ -801,7 +848,7 @@ static void disass_halfword_signed_transfer(unsigned32 instr, char *out)
 
     p = emit_mnemonic(p, base, cond);
 
-    p = append_reg(p, rd);
+    p = append_core_reg(p, rd);
     p = append_str(p, ", ");
 
     if (ibit) {
@@ -810,11 +857,11 @@ static void disass_halfword_signed_transfer(unsigned32 instr, char *out)
 
         if (off == 0 && pbit && !wbit) {
             p = append_str(p, "[");
-            p = append_reg(p, rn);
+            p = append_core_reg(p, rn);
             p = append_str(p, "]");
         } else if (pbit) {
             p = append_str(p, "[");
-            p = append_reg(p, rn);
+            p = append_core_reg(p, rn);
             p = append_str(p, ", ");
             if (!ubit) p = append_str(p, "-");
             p = append_immediate(p, off);
@@ -822,7 +869,7 @@ static void disass_halfword_signed_transfer(unsigned32 instr, char *out)
             if (wbit) p = append_str(p, "!");
         } else {
             p = append_str(p, "[");
-            p = append_reg(p, rn);
+            p = append_core_reg(p, rn);
             p = append_str(p, "], ");
             if (!ubit) p = append_str(p, "-");
             p = append_immediate(p, off);
@@ -833,18 +880,18 @@ static void disass_halfword_signed_transfer(unsigned32 instr, char *out)
 
         if (pbit) {
             p = append_str(p, "[");
-            p = append_reg(p, rn);
+            p = append_core_reg(p, rn);
             p = append_str(p, ", ");
             if (!ubit) p = append_str(p, "-");
-            p = append_reg(p, rm);
+            p = append_core_reg(p, rm);
             p = append_str(p, "]");
             if (wbit) p = append_str(p, "!");
         } else {
             p = append_str(p, "[");
-            p = append_reg(p, rn);
+            p = append_core_reg(p, rn);
             p = append_str(p, "], ");
             if (!ubit) p = append_str(p, "-");
-            p = append_reg(p, rm);
+            p = append_core_reg(p, rm);
         }
     }
 }
@@ -865,11 +912,11 @@ static void disass_swp(unsigned32 instr, char *out)
     p = emit_mnemonic(p, mnem, cond);
 
     /* SWP{B} Rd, Rm, [Rn] */
-    p = append_reg(p, rd);
+    p = append_core_reg(p, rd);
     p = append_str(p, ", ");
-    p = append_reg(p, rm);
+    p = append_core_reg(p, rm);
     p = append_str(p, ", [");
-    p = append_reg(p, rn);
+    p = append_core_reg(p, rn);
     p = append_str(p, "]");
 }
 
@@ -886,7 +933,7 @@ static void disass_bx_blx_reg(unsigned32 instr, char *out)
 
     sprintf(mnem, "%s", base);
     p = emit_mnemonic(p, mnem, cond);
-    p = append_reg(p, rm);
+    p = append_core_reg(p, rm);
 }
 
 /* ARM count-leading-zeros instruction: CLZ. */
@@ -898,9 +945,9 @@ static void disass_clz(unsigned32 instr, char *out)
     char *p = out;
 
     p = emit_mnemonic(p, "CLZ", cond);
-    p = append_reg(p, rd);
+    p = append_core_reg(p, rd);
     p = append_str(p, ", ");
-    p = append_reg(p, rm);
+    p = append_core_reg(p, rm);
 }
 
 /* ARM status register to general-purpose register: MRS. */
@@ -913,7 +960,7 @@ static void disass_mrs(unsigned32 instr, char *out)
     char *p = out;
 
     p = emit_mnemonic(p, "MRS", cond);
-    p = append_reg(p, rd);
+    p = append_core_reg(p, rd);
     p = append_str(p, ", ");
     p = append_str(p, psr_name);
 }
@@ -939,7 +986,7 @@ static void disass_msr(unsigned32 instr, char *out)
         p = append_immediate(p, val);
     } else {
         unsigned rm = BITS(instr, 3, 0);
-        p = append_reg(p, rm);
+        p = append_core_reg(p, rm);
     }
 }
 
