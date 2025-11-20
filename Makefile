@@ -173,7 +173,8 @@ endif
 
 # TARGET=newton
 ifeq ($(TARGET),newton)
-CFLAGS += -Dpascal="" -DMSG_TOOL_NAME=\"$(BUILD_TOOL)\"
+CFLAGS += -Dpascal="" -DMSG_TOOL_NAME=\"$(BUILD_TOOL)\" \
+          -DTARGET_IS_APPLEAPGMACHINE=1
 endif
 
 # Extra defines per tool
