@@ -1,10 +1,11 @@
 build
-localtests
+/*localtests
 .DS_Store
 
 /*.c
 /*.s
 /*.o
+/*bin
 
 # Xcode
 DerivedData

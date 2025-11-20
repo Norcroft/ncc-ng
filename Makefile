@@ -3,31 +3,30 @@
 # Outputs to: ../build/{bin,obj,derived}
 #
 # Options are:
-#   make ncc                	# C compiler (ARM backend)
+#   make ncc [<options>]       	# C compiler (ARM backend)
+#   make n++ [<options>]    	# C++ compiler (ARM backend)
 #   make ntcc               	# C compiler (Thumb backend)
-#   make n++                	# C++ compiler (ARM backend)
 #   make nt++               	# C++ compiler (Thumb backend)
-#   make interp             	# C++ interpreter
-#   make clbcomp            	# C++ Callable compiler
-#   make ... BUILD32=1      	# force -m32 (force 32-bit build on Linux)
-#   make ... TARGET=riscos		# Cross compiler targeting RISC OS (runs on host)
-#   make ... TARGET=riscos HOST=riscos	# Build a RISC OS-native compiler
-#   make ... TARGET=newton		# Create cross compiler targettingApple Newton
-#   make all                	# ncc + n++
+#   make all                	# ncc & n++
 #   make clean / make distclean
 
+# ncc and n++ can be compiled to target different plaforms:
+#   TARGET=newton					# Cross compiler targetting Apple Newton
+#
+#   TARGET=riscos					# Cross compiler targeting 32-bit RISC OS
+#   TARGET=riscos26					# Cross compiler targeting 26-bit RISC OS
+#   TARGET=riscos   HOST=riscos		# 32-bit RISC OS-native compiler
+#   TARGET=riscos26 HOST=riscos		# 26-bit RISC OS-native compiler
+#
+# RISC OS native compilers first build a suitable RISC OS cross compiler,
+# which then builds the native compiler.
+
 # config toggles ----------------
-TARGET      ?= arm          # arm | riscos | newton
-BUILD32     ?=
+TARGET      ?= arm          # arm | riscos | riscos26 | newton
 WARN        ?= minimal      # some | minimal | none
-HOST    	?=              # "" | riscos
+HOST    	?=              # riscos | <blank>
 
 .DEFAULT_GOAL := ncc
-
-# toolchain
-CC          ?= cc
-AR          ?= ar
-RANLIB      ?= ranlib
 
 # layout (this Makefile sits immediately above ncc/)
 SRC_ROOT     := ncc
@@ -36,21 +35,35 @@ DERIVED_ROOT := $(OUT_ROOT)/derived
 
 .SECONDARY:
 
-BIN_DIR     := $(OUT_ROOT)/bin
+BIN_DIR     := bin
+
+# toolchain - this is overwritten if HOST=riscos
+CC          ?= cc
+ifeq ($(HOST),riscos)
+CC          := $(BIN_DIR)/ncc-$(TARGET)
+endif
 
 TARGET := $(strip $(TARGET))
 WARN   := $(strip $(WARN))
 HOST   := $(strip $(HOST))
 
-# Use the RISC OS-native toolchain only when TARGET=riscos and HOST=riscos
-CC := $(if $(and $(filter riscos,$(TARGET)),$(filter riscos,$(HOST))),build/bin/ncc-riscos,cc)
-
-# Additional flavour suffix when building a RISC OS-native compiler under TARGET=riscos
-BIN_FLAVOUR := $(if $(and $(filter riscos,$(TARGET)),$(filter riscos,$(HOST))),-riscos,)
-OBJ_FLAVOUR := $(if $(and $(filter riscos,$(TARGET)),$(filter riscos,$(HOST))),-riscos,)
-
 # Suffix binaries when TARGET != arm (so we can build multiple variants)
-BIN_SUFFIX := $(if $(filter arm,$(TARGET)),,$(addprefix -,$(TARGET)))$(BIN_FLAVOUR)
+BIN_SUFFIX := $(if $(filter arm,$(TARGET)),,$(addprefix -,$(TARGET)))
+
+# Overide binary name for HOST=riscos -----------------------------
+ifeq ($(HOST),riscos)
+  # Binary is named "ncc,ff8", which is the file type for an executable.
+  ifeq ($(TARGET),riscos26)
+    BIN_SUFFIX := 26,ff8
+  else
+    BIN_SUFFIX := ,ff8
+  endif
+
+  # Objects are created in build/obj/riscos-native.
+  OBJ_FLAVOUR := -native
+endif # if HOST=riscos
+
+# Target setup -----------------------------------------------------------------
 
 BIN_NCC    := $(BIN_DIR)/ncc$(BIN_SUFFIX)
 BIN_NCPP   := $(BIN_DIR)/n++$(BIN_SUFFIX)
@@ -69,6 +82,7 @@ OPTIONS_interp  := cppint
 OPTIONS_clbcomp := clbcomp
 
 # default options.h directories if TARGET != arm. ncc/ntcc only.
+OPTIONS_riscos26 := ccacorn
 OPTIONS_riscos 	 := ccacorn
 OPTIONS_newton   := ccapple
 
@@ -109,50 +123,77 @@ else
 endif
 
 # common flags -----------------
-ifeq ($(TARGET),newton)
-CFLAGS := -Dpascal="" -DMSG_TOOL_NAME=\"$(BUILD_TOOL)\"
-LDLIBS :=
-endif
+# HOST != riscos. ie. using host's compiler (clang or gcc)
+ifneq ($(HOST),riscos)
+CFLAGS := -O2 -std=gnu89 -fcommon -fno-strict-aliasing $(WFLAGS)
+LDLIBS := -lm
 
-ifeq ($(TARGET),riscos)
-CFLAGS := -DCOMPILING_ON_ARM -DTARGET_IS_RISC_OS -DFOR_ACORN -D__acorn
-LDLIBS :=
-endif
-
-# The default RISC OS compiler generates code for 26-bit RISC OS.
-# To generate a RISC OS-hosted compiler for 32-bit RISC OS, ensure CFLAGS
-# include at least: -apcs 3/32bit/fpe3 -za=1
-ifeq ($(HOST),riscos)
-CFLAGS += -DCOMPILING_ON_RISCOS -DCOMPILING_ON_RISC_OS -DHOST_IS_RISCOS
-LDLIBS +=
-else
-CFLAGS += -O2 -std=gnu89 -fcommon -fno-strict-aliasing $(WFLAGS)
-LDLIBS += -lm
 DEPFLAGS = -MMD -MP -MF $(@:.o=.d)
+endif # HOST != riscos
+
+# TARGET=riscos or riscos26
+ifneq (,$(filter riscos riscos26,$(TARGET)))
+  # Flags for targeting RISC OS (cross-compiler or native)
+  CFLAGS += -DCOMPILING_ON_ARM -DTARGET_IS_RISC_OS -DFOR_ACORN -D__acorn
+
+  ifeq ($(TARGET),riscos26)
+    # Configure the compiler (cross or native) to generate APCS-R (26bit).
+    #
+    # There's no flag for the inverse of NO_UNALIGNED_LOADS without modifying
+    # the source, but aligned loads are the current default anyway.
+    CFLAGS += -DPCS_DEFAULTS=0
+  else
+    # Configure the compiler (cross or native) to generate APCS-32.
+    CFLAGS += -DPCS_DEFAULTS=3 -DNO_UNALIGNED_LOADS
+  endif
+
+  # TARGET=riscos/riscos26 HOST=riscos
+  ifeq ($(HOST),riscos)
+    # ie. flags passed to host's ncc-riscos or ncc-riscos26, to generate
+    # ncc or n++ to run on RISC OS.
+    CFLAGS += -DCOMPILING_ON_RISCOS -DCOMPILING_ON_RISC_OS -DHOST_IS_RISCOS
+
+    ifeq ($(TARGET),riscos26)
+      # 26-bit RISC OS: APCS-3, 26-bit, unaligned loads rotate
+      CFLAGS += -apcs 3/26bit -za0
+      STUBS_LIB := lib/stubs-26.a
+    else
+      # 32-bit RISC OS: APCS-3, 32-bit, FPE3, no unaligned loads.
+      CFLAGS += -apcs 3/32bit/fpe3 -za1
+      STUBS_LIB := lib/stubs.a
+    endif
+
+    LDLIBS := $(STUBS_LIB)
+
+    # Make sure stubs library exists before linking the RISC OS-native compiler.
+    $(BIN_NCC) $(BIN_NCPP) $(BIN_NTCC) \
+    $(BIN_NTCPP) $(BIN_INTERP) $(BIN_CLBCOMP): $(STUBS_LIB)
+  endif
 endif
 
-ifeq ($(BUILD32),1)
-  CFLAGS  += -m32
-  LDFLAGS += -m32
+# TARGET=newton
+ifeq ($(TARGET),newton)
+CFLAGS += -Dpascal="" -DMSG_TOOL_NAME=\"$(BUILD_TOOL)\"
 endif
 
-C_DEFS :=
-CPP_DEFS := -DCPLUSPLUS
+# Extra defines per tool
+CFLAGS_clbcomp := -DCALLABLE_COMPILER
+CFLAGS_n++ := -DCPLUSPLUS
+CFLAGS_nt++ := -DCPLUSPLUS
 
 # --- Linker selection -------------------------------------------------
 
 # Use drlink only when we are building a RISC OS-native compiler
-# i.e. TARGET=riscos and HOST=riscos
-ifeq ($(filter riscos,$(TARGET) $(HOST)),riscos riscos)
+# (supports AOF not ELF).
+ifeq ($(HOST),riscos)
   LD := drlink
-  LDLIBS := lib/clib/stubsg.o
 else
   LD := $(CC)
 endif
 
 # HOST_DIR contains host.h. Probably needs splitting into arm & riscos.
 HOST_DIR := $(SRC_ROOT)/../ncc-support
-COMPAT_DIR := $(SRC_ROOT)/../ncc-support
+SUPPORT_DIR := $(SRC_ROOT)/../ncc-support
 
 INC_COMMON := \
   -I$(SRC_ROOT)/mip \
@@ -163,6 +204,17 @@ INC_COMMON := \
   -I$(HOST_DIR) \
   -I$(SRC_ROOT)/$(OPTIONS_DIR) \
   -I$(DERIVED_DIR)
+
+# Norcroft (HOST=riscos) cannot direct dependency files with -MF, so
+# generate them in a second pass using -M and redirect stdio.
+# On non-RISC OS hosts, DEPCMD is a no-op and we rely on -MMD/-MP.
+ifeq ($(HOST),riscos)
+DEPCMD   = $(CC) $(CFLAGS) $(INC_COMMON) -M
+DEPREDIR = > $(@:.o=.d)
+else
+DEPCMD   = @true
+DEPREDIR =
+endif
 
 # sources ----------------------
 CC_COMMON := \
@@ -187,23 +239,36 @@ CPPFE_SOURCES := \
 ARM_SRCS := arm/asm.c arm/gen.c arm/mcdep.c arm/peephole.c
 THUMB_SRCS := thumb/asm.c thumb/gen.c thumb/mcdep.c thumb/peephole.c
 
-COMPAT_SRCS := \
-  compat/dde.c \
-  compat/dem.c \
-  compat/disass.c \
-  compat/filestat.c \
-  compat/fname.c \
-  compat/ieeeflt.c \
-  compat/int64.c \
-  compat/msg.c \
-  compat/prgname.c \
-  compat/riscos.c \
-  compat/toolenv.c \
-  compat/trackfil.c \
-  compat/unmangle.c \
+INTERP_SRCS := \
+  interp/interp.c \
+  mip/builtin.c mip/aetree.c mip/misc.c mip/store.c mip/bind.c mip/compiler.c \
+  cfe/pp.c \
+  $(CPPFE_SOURCES) \
+  $(CFE_SOURCES) \
 
-ifeq ($(filter riscos,$(TARGET) $(HOST)),riscos riscos)
-COMPAT_SRCS += int64-runtime.c
+CLBCOMP_SRCS := \
+	mip/aetree.c mip/misc.c mip/compiler.c clbcomp/clbcomp.c \
+	clbcomp/clb_store.c cppfe/xsyn.c cppfe/xsem.c cppfe/xbuiltin.c \
+	cppfe/xbind.c cppfe/overload.c cppfe/xlex.c cfe/simplify.c cfe/pp.c
+
+SUPPORT_SRCS := \
+  ncc-support/dde.c \
+  ncc-support/dem.c \
+  ncc-support/disass.c \
+  ncc-support/disass-fpa.c \
+  ncc-support/filestat.c \
+  ncc-support/fname.c \
+  ncc-support/ieeeflt.c \
+  ncc-support/int64.c \
+  ncc-support/msg.c \
+  ncc-support/prgname.c \
+  ncc-support/riscos.c \
+  ncc-support/toolenv.c \
+  ncc-support/trackfil.c \
+  ncc-support/unmangle.c \
+
+ifeq ($(HOST),riscos)
+SUPPORT_SRCS += ncc-support/int64-runtime.c
 endif
 
 # Generated source and header files.
@@ -221,11 +286,11 @@ CLIB_HDRS := assert.h ctype.h errno.h float.h iso646.h limits.h \
 			 stdio.h stdlib.h string.h time.h
 CLIB_RISCOS_HDRS := kernel.h stdint.h varargs.h
 
-CLIB_HDRS    += $(if $(filter riscos,$(TARGET)),$(CLIB_RISCOS_HDRS),)
+CLIB_HDRS    += $(if $(filter riscos riscos26,$(TARGET)),$(CLIB_RISCOS_HDRS),)
 
 OPTIONS_DIR  := $(if $(filter arm,$(TARGET)),$(OPTIONS_DEFAULT_DIR),$(OPTIONS_OVERRIDE_DIR))
 
-CLIB_HDRS_DIR := lib/clib/include/
+CLIB_HDRS_DIR := external/clib/include/
 
 # error lists
 ERRS_H := \
@@ -236,29 +301,47 @@ ERRS_H := \
 $(DERIVED_STAMP): $(DERIVED_SRCS) $(DERIVED_HDRS) | $(DERIVED_DIR)
 	@touch $@
 
+# When building a RISC OS-hosted compiler, ensure the host-built
+# derived files exist before bootstrapping the cross ncc.
+ifeq ($(HOST),riscos)
+# Phony bootstrap target: builds the unix-hosted cross-compiler first.
+BOOTSTRAP_NCC_RISCOS := bootstrap-ncc-riscos
+
+# Recurse into Makefile to build host compiler without HOST=riscos.
+$(BOOTSTRAP_NCC_RISCOS): $(DERIVED_STAMP)
+	$(MAKE) ncc TARGET=$(TARGET) HOST=
+endif
+
 # ---- Host tools (built for and run on the build host regardless of TARGET)
 CC_HOST       ?= cc
-CFLAGS_HOST   ?= $(CFLAGS)
+CFLAGS_HOST   ?= -O2 -std=gnu89 -fcommon -fno-strict-aliasing $(WFLAGS)
 HOSTTOOLS_DIR := $(OUT_ROOT)/hosttools
 GENHDRS_HOST  := $(HOSTTOOLS_DIR)/genhdrs
 PEEPGEN_HOST  := $(HOSTTOOLS_DIR)/peepgen
 
 # per-tool bundles ----------------
-NCC_SRCS   := $(CC_COMMON) $(CFE_SOURCES)   $(ARM_SRCS)   $(COMPAT_SRCS)
-NCPP_SRCS  := $(CC_COMMON) $(CPPFE_SOURCES) $(ARM_SRCS)   $(COMPAT_SRCS)
+NCC_SRCS   := $(CC_COMMON) $(CFE_SOURCES)   $(ARM_SRCS)
+NCPP_SRCS  := $(CC_COMMON) $(CPPFE_SOURCES) $(ARM_SRCS)
 NTCC_SRCS  := $(CC_COMMON) $(CFE_SOURCES)   $(THUMB_SRCS)
 NTCPP_SRCS := $(CC_COMMON) $(CPPFE_SOURCES) $(THUMB_SRCS)
 
-# .o files in build/obj/<tool>/ (no subdirs)
-NCC_OBJS     := $(addprefix $(OBJ_DIR)/ncc/,$(notdir $(NCC_SRCS:.c=.o))) $(OBJ_DIR)/ncc/headers.o
-NCPP_OBJS    := $(addprefix $(OBJ_DIR)/n++/,$(notdir $(NCPP_SRCS:.c=.o))) $(OBJ_DIR)/n++/headers.o
-NTCC_OBJS    := $(addprefix $(OBJ_DIR)/ntcc/,$(notdir $(NTCC_SRCS:.c=.o))) $(OBJ_DIR)/ntcc/headers.o
-NTCPP_OBJS   := $(addprefix $(OBJ_DIR)/nt++/,$(notdir $(NTCPP_SRCS:.c=.o))) $(OBJ_DIR)/nt++/headers.o
-INTERP_OBJS  := $(addprefix $(OBJ_DIR)/interp/,$(notdir $(INTERP_SRCS:.c=.o))) $(OBJ_DIR)/interp/headers.o
-CLBCOMP_OBJS := $(addprefix $(OBJ_DIR)/clbcomp/,$(notdir $(CLBCOMP_SRCS:.c=.o)))
+# .o files in build/obj/<tool>/...
+NCC_OBJS     := $(addprefix $(OBJ_DIR)/ncc/,$(NCC_SRCS:.c=.o))
+NCPP_OBJS    := $(addprefix $(OBJ_DIR)/n++/,$(NCPP_SRCS:.c=.o))
+NTCC_OBJS    := $(addprefix $(OBJ_DIR)/ntcc/,$(NTCC_SRCS:.c=.o))
+NTCPP_OBJS   := $(addprefix $(OBJ_DIR)/nt++/,$(NTCPP_SRCS:.c=.o))
+INTERP_OBJS  := $(addprefix $(OBJ_DIR)/interp/,$(INTERP_SRCS:.c=.o))
+CLBCOMP_OBJS := $(addprefix $(OBJ_DIR)/clbcomp/,$(CLBCOMP_SRCS:.c=.o))
+SUPPORT_OBJS := $(addprefix $(OBJ_DIR)/ncc-support/, $(notdir $(SUPPORT_SRCS:.c=.o)))
 
 # Ensure generated sources exist before compiling anything that may include them
-$(OBJ_DIR)/ncc/%.o $(OBJ_DIR)/n++/%.o $(OBJ_DIR)/ntcc/%.o $(OBJ_DIR)/nt++/%.o $(OBJ_DIR)/interp/%.o $(OBJ_DIR)/clbcomp/%.o: | $(DERIVED_STAMP)
+$(OBJ_DIR)/ncc/%.o \
+$(OBJ_DIR)/n++/%.o \
+$(OBJ_DIR)/ntcc/%.o \
+$(OBJ_DIR)/nt++/%.o \
+$(OBJ_DIR)/interp/%.o \
+$(OBJ_DIR)/clbcomp/%.o: \
+$(OBJ_DIR)/ncc-support/%.o | $(DERIVED_STAMP)
 
 # peeppat.c is generated and #included by peephole.c; do not compile it separately.
 # Ensure each backend’s peephole.o is rebuilt if peeppat.c changes.
@@ -267,18 +350,8 @@ $(OBJ_DIR)/n++/peephole.o \
 $(OBJ_DIR)/ntcc/peephole.o \
 $(OBJ_DIR)/nt++/peephole.o: $(DERIVED_DIR)/peeppat.c
 
-INTERP_SRCS := \
-  interp/interp.c \
-  mip/builtin.c mip/aetree.c mip/misc.c mip/store.c mip/bind.c \
-  mip/compiler.c cfe/pp.c \
-  $(CPPFE_SOURCES) \
-  $(CFE_SOURCES) \
-  $(DERIVED_SRCS)
-
-CLBCOMP_SRCS := \
-	mip/aetree.c mip/misc.c mip/compiler.c clbcomp/clbcomp.c \
-	clbcomp/clb_store.c cppfe/xsyn.c cppfe/xsem.c cppfe/xbuiltin.c \
-	cppfe/xbind.c cppfe/overload.c cppfe/xlex.c cfe/simplify.c cfe/pp.c
+# headers.c is generated and compiled once per OBJ_DIR, not per tool.
+HEADERS_OBJ := $(OBJ_DIR)/headers.o
 
 #
 # top-level goals
@@ -296,38 +369,19 @@ print:
 	@echo "CC=$(CC)"
 	@echo "CFLAGS=$(CFLAGS)"
 	@echo "LDFLAGS=$(LDFLAGS)"
-	@echo "TARGET=$(TARGET) BUILD32=$(BUILD32) WARN=$(WARN)"
+	@echo "TARGET=$(TARGET) WARN=$(WARN)"
 	@echo "HOST=$(HOST)"
 	@echo "BUILD_TOOL=$(BUILD_TOOL)"
 	@echo "BACKEND=$(BACKEND)"
 	@echo "OPTIONS_DIR=$(OPTIONS_DIR)"
 	@echo "HOST_DIR=$(HOST_DIR)"
-	@echo "COMPAT_DIR=$(COMPAT_DIR)"
+	@echo "SUPPORT_DIR=$(SUPPORT_DIR)"
 	@echo "DERIVED_DIR=$(DERIVED_DIR)"
 	@echo "OBJ_DIR=$(OBJ_DIR) BIN_DIR=$(BIN_DIR)"
 	@echo "BIN_SUFFIX=$(BIN_SUFFIX)"
 	@echo "BINARIES: ncc=$(BIN_NCC) n++=$(BIN_NCPP) ntcc=$(BIN_NTCC) nt++=$(BIN_NTCPP) npp=$(BIN_INTERP) clbcomp=$(BIN_CLBCOMP)"
 	@echo "HOSTTOOLS_DIR=$(HOSTTOOLS_DIR)"
 	@echo "GENHDRS_HOST=$(GENHDRS_HOST) PEEPGEN_HOST=$(PEEPGEN_HOST)"
-
-# ------------- link rules ---------------------
-$(BIN_NCC): $(NCC_OBJS) | $(BIN_DIR)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
-$(BIN_NCPP): $(NCPP_OBJS) | $(BIN_DIR)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
-$(BIN_NTCC): $(NTCC_OBJS) | $(BIN_DIR)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
-$(BIN_NTCPP): $(NTCPP_OBJS) | $(BIN_DIR)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
-$(BIN_INTERP): $(INTERP_OBJS) | $(BIN_DIR)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
-
-$(BIN_CLBCOMP): $(CLBCOMP_OBJS) | $(BIN_DIR)
-	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 # ------------- compile rules ------------------
 # Provide explicit per-subdir patterns so make can find the sources
@@ -337,82 +391,72 @@ $(BIN_CLBCOMP): $(CLBCOMP_OBJS) | $(BIN_DIR)
 INTERP_INCS    := -I$(SRC_ROOT)/$(OPTIONS_INTERP)
 CLB_INCS       := -I$(SRC_ROOT)/clbcomp
 
-$(OBJ_DIR)/ncc/%.o: $(SRC_ROOT)/mip/%.c | $(OBJ_DIR)/ncc $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(C_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/ncc/%.o: $(SRC_ROOT)/cfe/%.c | $(OBJ_DIR)/ncc $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(C_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/ncc/%.o: $(SRC_ROOT)/arm/%.c | $(OBJ_DIR)/ncc $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(C_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/ncc/%.o: $(SRC_ROOT)/armthumb/%.c | $(OBJ_DIR)/ncc $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(C_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/ncc/%.o: $(DERIVED_DIR)/%.c | $(OBJ_DIR)/ncc $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(C_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/ncc/%.o: $(COMPAT_DIR)/%.c | $(OBJ_DIR)/ncc $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(C_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
+# ncc: anything under $(SRC_ROOT) (mip/, cfe/, arm/, armthumb/, cppfe/)
+$(OBJ_DIR)/ncc/%.o: $(SRC_ROOT)/%.c $(BOOTSTRAP_NCC_RISCOS) | $(DERIVED_STAMP)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
+	$(DEPCMD) $< $(DEPREDIR)
 
 # n++ (ARM C++)
-$(OBJ_DIR)/n++/%.o: $(SRC_ROOT)/mip/%.c | $(OBJ_DIR)/n++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/n++/%.o: $(SRC_ROOT)/cfe/%.c | $(OBJ_DIR)/n++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/n++/%.o: $(SRC_ROOT)/cppfe/%.c | $(OBJ_DIR)/n++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/n++/%.o: $(SRC_ROOT)/arm/%.c | $(OBJ_DIR)/n++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/n++/%.o: $(SRC_ROOT)/armthumb/%.c | $(OBJ_DIR)/n++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/n++/%.o: $(DERIVED_DIR)/%.c | $(OBJ_DIR)/n++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/n++/%.o: $(COMPAT_DIR)/%.c | $(OBJ_DIR)/n++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
+$(OBJ_DIR)/n++/%.o: $(SRC_ROOT)/%.c $(BOOTSTRAP_NCC_RISCOS) | $(DERIVED_STAMP)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(CFLAGS_n++) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
+	$(DEPCMD) $(CFLAGS_n++) $< $(DEPREDIR)
 
 # ntcc (Thumb C)
-$(OBJ_DIR)/ntcc/%.o: $(SRC_ROOT)/mip/%.c | $(OBJ_DIR)/ntcc $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(C_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/ntcc/%.o: $(SRC_ROOT)/cfe/%.c | $(OBJ_DIR)/ntcc $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(C_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/ntcc/%.o: $(SRC_ROOT)/thumb/%.c | $(OBJ_DIR)/ntcc $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(C_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/ntcc/%.o: $(SRC_ROOT)/armthumb/%.c | $(OBJ_DIR)/ntcc $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(C_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/ntcc/%.o: $(DERIVED_DIR)/%.c | $(OBJ_DIR)/ntcc $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(C_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
+$(OBJ_DIR)/ntcc/%.o: $(SRC_ROOT)/%.c $(BOOTSTRAP_NCC_RISCOS) | $(DERIVED_STAMP)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
+	$(DEPCMD) $< $(DEPREDIR)
 
 # nt++ (Thumb C++)
-$(OBJ_DIR)/nt++/%.o: $(SRC_ROOT)/mip/%.c | $(OBJ_DIR)/nt++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/nt++/%.o: $(SRC_ROOT)/cfe/%.c | $(OBJ_DIR)/nt++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/nt++/%.o: $(SRC_ROOT)/cppfe/%.c | $(OBJ_DIR)/nt++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/nt++/%.o: $(SRC_ROOT)/thumb/%.c | $(OBJ_DIR)/nt++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/nt++/%.o: $(SRC_ROOT)/armthumb/%.c | $(OBJ_DIR)/nt++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/nt++/%.o: $(DERIVED_DIR)/%.c | $(OBJ_DIR)/nt++ $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(CPP_DEFS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
+$(OBJ_DIR)/nt++/%.o: $(SRC_ROOT)/%.c $(BOOTSTRAP_NCC_RISCOS) | $(DERIVED_STAMP)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(CFLAGS_nt++) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
+	$(DEPCMD) $(CFLAGS_nt++) $< $(DEPREDIR)
 
 # interp
-$(OBJ_DIR)/interp/%.o: $(SRC_ROOT)/interp/%.c | $(OBJ_DIR)/interp $(DERIVED_STAMP)
+$(OBJ_DIR)/interp/%.o: $(SRC_ROOT)/%.c $(BOOTSTRAP_NCC_RISCOS) | $(DERIVED_STAMP)
+	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INC_COMMON) $(INTERP_INCS) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/interp/%.o: $(SRC_ROOT)/mip/%.c | $(OBJ_DIR)/interp $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(INC_COMMON) $(INTERP_INCS) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/interp/%.o: $(SRC_ROOT)/cfe/%.c | $(OBJ_DIR)/interp $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(INC_COMMON) $(INTERP_INCS) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/interp/%.o: $(SRC_ROOT)/cppfe/%.c | $(OBJ_DIR)/interp $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(INC_COMMON) $(INTERP_INCS) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/interp/%.o: $(DERIVED_DIR)/%.c | $(OBJ_DIR)/interp $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(INC_COMMON) $(INTERP_INCS) $(DEPFLAGS) -c $< -o $@
+	$(DEPCMD) $(INTERP_INCS) $< $(DEPREDIR)
 
 # clbcomp
-$(OBJ_DIR)/clbcomp/%.o: $(SRC_ROOT)/clbcomp/%.c | $(OBJ_DIR)/clbcomp $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(INC_COMMON) $(CLB_INCS) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/clbcomp/%.o: $(SRC_ROOT)/mip/%.c | $(OBJ_DIR)/clbcomp $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(INC_COMMON) $(CLB_INCS) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/clbcomp/%.o: $(SRC_ROOT)/cfe/%.c | $(OBJ_DIR)/clbcomp $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(INC_COMMON) $(CLB_INCS) $(DEPFLAGS) -c $< -o $@
-$(OBJ_DIR)/clbcomp/%.o: $(SRC_ROOT)/cppfe/%.c | $(OBJ_DIR)/clbcomp $(DERIVED_STAMP)
-	$(CC) $(CFLAGS) $(INC_COMMON) $(CLB_INCS) $(DEPFLAGS) -c $< -o $@
+$(OBJ_DIR)/clbcomp/%.o: $(SRC_ROOT)/%.c $(BOOTSTRAP_NCC_RISCOS) | $(DERIVED_STAMP)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(CFLAGS_clbcomp) $(INC_COMMON) $(CLB_INCS) $(DEPFLAGS) -c $< -o $@
+	$(DEPCMD) $(CFLAGS_clbcomp) $(CLB_INCS) $< $(DEPREDIR)
+
+# support files (shared by all tools for a given OBJ_DIR)
+$(OBJ_DIR)/ncc-support/%.o: $(SUPPORT_DIR)/%.c $(BOOTSTRAP_NCC_RISCOS) | $(DERIVED_STAMP)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
+	$(DEPCMD) $< $(DEPREDIR)
+
+# headers.c (shared by all tools for a given OBJ_DIR)
+$(HEADERS_OBJ): $(DERIVED_DIR)/headers.c $(BOOTSTRAP_NCC_RISCOS) | $(DERIVED_STAMP)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) $(INC_COMMON) $(DEPFLAGS) -c $< -o $@
+	$(DEPCMD) $< $(DEPREDIR)
+
+# ------------- link rules ---------------------
+$(BIN_NCC):     $(NCC_OBJS)     $(SUPPORT_OBJS) $(HEADERS_OBJ) | $(BIN_DIR)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+$(BIN_NCPP):    $(NCPP_OBJS)    $(SUPPORT_OBJS) $(HEADERS_OBJ) | $(BIN_DIR)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+$(BIN_NTCC):    $(NTCC_OBJS)    $(SUPPORT_OBJS) $(HEADERS_OBJ) | $(BIN_DIR)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+$(BIN_NTCPP):   $(NTCPP_OBJS)   $(SUPPORT_OBJS) $(HEADERS_OBJ) | $(BIN_DIR)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+$(BIN_INTERP):  $(INTERP_OBJS)  $(HEADERS_OBJ) | $(BIN_DIR)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+
+$(BIN_CLBCOMP): $(CLBCOMP_OBJS) $(HEADERS_OBJ) | $(BIN_DIR)
+	$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 # derived generation -------------
 $(HOSTTOOLS_DIR):
@@ -452,7 +496,8 @@ $(DERIVED_DIR)/peeppat.c: $(PEEPGEN_HOST) $(PEEPPAT_TXT) | $(DERIVED_DIR)
          $(OBJ_DIR)/ntcc/*.d \
          $(OBJ_DIR)/nt++/*.d \
          $(OBJ_DIR)/interp/*.d \
-         $(OBJ_DIR)/clbcomp/*.d
+         $(OBJ_DIR)/clbcomp/*.d \
+         $(OBJ_DIR)/ncc-support/*.d
 
 # hygiene ------------------------
 clean:
