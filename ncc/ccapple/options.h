@@ -19,6 +19,9 @@
 #ifndef _options_LOADED
 #define _options_LOADED
 
+#include "toolver.h"
+#define NON_RELEASE_VSN TOOLVER_ARMCC
+
 /* Include the following line to make an Apple APG compiler;
  * Exclude it to make a standard toolkit compiler.
  */
