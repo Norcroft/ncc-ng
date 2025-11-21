@@ -1,33 +1,38 @@
-# Norcroft C/C++ — SDT 2.11a Restoration
+# Norcroft NG
 
-This repository contains a lightly modernised restoration of the historical 
-Norcroft C/C++ compiler, based on ARM’s SDT 2.11a source release.
+Norcroft NG is the active development branch that builds on the restored
+historical Norcroft C/C++ compiler. It introduces improvements, new features,
+bug fixes, and additional backends while keeping the spirit of the original.
 
-The aim is to preserve the original Norcroft compiler source as closely as
-practical, with minimal changes, so it can be compiled with modern C compilers
-and run on 64-bit computers (macOS, Linux). In addition, those builds can then
-be used to compile itself to create C and C++ compilers that run on RISC OS.
+Using the name Norcroft NG avoids version-number clashes as each vendor was
+encouraged to have their own version numbering.
 
 Code is emitted in AOF files and supports several targets: ARM's generic 32-bit
 development platform, RISC OS (32-bit and 26-bit), and Apple Newton (untested).
 
-The historical RISC OS target produced 26-bit AOF. The default Makefile
-overrides this to generate 32-bit RISC OS 5 output unless `TARGET=riscos26` is
-specified.
-
 ## Contents
 
-- **`ncc/`** — the historical compiler source with only minimal changes to compile
-   on modern compilers and for 64-bit hosts. The intention is to keep the
-   files in this directory unchanged, apart from fixing any remaining 64-bit bugs.
+- **`ncc/`** — the compiler source code.
 
 - **`ncc-support/`** — newly recreated support code and glue. These files will
   be replaced with original equivalents as they are located.
 
+- **`tests/`** - simple test suite that can check compilation of tests in
+  various ways - assembler output or assertions that the test's syntax
+  correctly compiles or correctly fails to compile.
+
+- **`external/`** - externally sourced libraries that can be built by
+  here, usually imported git repositories. For instance RISC OS `stubs`.
+
 - **`external/clib/`** — standard C library header files. The original
    Acorn/Codemist C headers have not yet been released under an open source
-   licence, so these are more modern versions from the ROOL fork of Norcroft,
-   lightly 'de-updated'.
+   licence, so these are more modern versions from the ROOL fork of
+   Norcroft, lightly 'de-updated'.
+
+- **`tools/`** - currently a python recreation of `libfile`, the
+  AOF equivalent of `ar`. Useful for building libraries such as `stubs`.
+
+- **`bin/`** and **`lib/`** destinations for binaries and library files.
 
 ## Building
 C:
@@ -70,29 +75,11 @@ make distclean
 for broad hardware compatibility. Use `-za0` to allow unaligned loads where
 appropriate.
 
-## Background
+### Contributions
 
-When Acorn developed the ARM, they showed it to some of their university
-contemporaries who enthusiastically offered to develop an optimising C
-compiler, creating Norcroft C. The compiler was developed jointly by Codemist
-Ltd and Acorn, with Acorn retaining the rights for ARM-based targets and
-Codemist retaining the rights for other CPU architectures. When Acorn spun ARM
-out as a separate company, Norcroft C moved to ARM Ltd, with Acorn retaining a
-licence. ARM and Codemist continued working together on the compiler —
-including the creation of a new C++ front end — into the late 1990s.
+Please contribute to this fork. Norcroft must be able to compile itself (easiest way to check is to build a RISC OS-hosted compiler), which
+currently means strict adherence to ANSI C.
 
-These repositories are built on the surviving source code for the final
-release of the jointly developed Norcroft C/C++. ARM continued developing
-their compiler afterwards, but replaced the C++ front end with one licensed
-from EDG.
-
-Acorn continued to license Norcroft C from ARM until around 1994, when Acorn
-didn't renew their contract. Since around 1999, Acorn's RISC OS successors
-(Element 14 Ltd, Pace, Castle, ROOL) have updated their 1994 fork of the
-compiler to support newer C standards. That version is available from [ROOL](https://www.riscosopen.org).
-
-For more historical context, see [Codemist's archived website](https://web.archive.org/web/20250113002824/https://codemist.co.uk/ncc/index.html)
-or watch Lee Smith (ARM) and Arthur Norman (Codemist) discussing ["the ARM... kind of needing compilers"](https://www.youtube.com/watch?v=hwUoVU_XCis).
 
 ## Acknowledgements
 
