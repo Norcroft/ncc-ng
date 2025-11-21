@@ -20,9 +20,10 @@
  * host-machine issue.
  */
 
-#ifdef FOR_ACORN
+#include "toolver.h"
+#define NON_RELEASE_VSN TOOLVER_ARMCC
 
-#define NON_RELEASE_VSN "5.05 (Acorn Computers Ltd)"
+#ifdef FOR_ACORN
 
 #define msg_driver_help  "\nUsage :         %s [options] file1 file2 ... fileN\n",\
 "",\
@@ -84,11 +85,6 @@
 #define TARGET_IS_ACORN_RISC_OS 1
 #define TARGET_WANTS_FUNCTION_NAMES 1
 
-#else /* must be for ARM's RISC OS targetting... */
-
-#include "toolver.h"
-#define NON_RELEASE_VSN TOOLVER_ARMCC
-
 #endif
 
 #define TARGET_ENDIANNESS_CONFIGURABLE
@@ -97,27 +93,18 @@
                                          /* unset => defaults to host */
 
 #ifdef COMPILING_ON_UNIX
-#   ifdef __APPLE__
-#      define TARGET_SYSTEM "macOS"
-#   elif __linux__
-#      define TARGET_SYSTEM "Linux"
-#   else
-#     define TARGET_SYSTEM  "RISCiX"
-#     define TARGET_IS_UNIX    1
-#     define NO_INSTORE_FILES  1          /* no in-store headers under Unix.  */
-#     define HOST_WANTS_NO_BANNER 1
-#   endif
+#  define HOST_WANTS_NO_BANNER 1
+
 /* #define TARGET_HAS_DIVREM_FUNCTION 1 -- divide fn also returns remainder.*/
 /* #define TARGET_HAS_DIV_10_FUNCTION 1 -- fast divide by 10                */
                                         /* but not under ARM Unix...        */
 #endif
 
-#ifdef COMPILING_ON_RISC_OS
-#   define TARGET_SYSTEM     "RISC OS"
-#   define TARGET_IS_RISC_OS 1
-#   define TARGET_HAS_DIVREM_FUNCTION 1 /* divide fn also returns remainder.*/
-#   define TARGET_HAS_DIV_10_FUNCTION 1 /* fast divide by 10                */
-#endif                                  /* the last two would be in target.h*/
+#define TARGET_SYSTEM     "RISC OS"
+#define TARGET_IS_RISC_OS 1
+#define TARGET_HAS_DIVREM_FUNCTION 1 /* divide fn also returns remainder.*/
+#define TARGET_HAS_DIV_10_FUNCTION 1 /* fast divide by 10                */
+                                     /* the last two would be in target.h*/
                                         /* but are OS-dependent too. */
 
 /* #define DO_NOT_EXPLOIT_REGISTERS_PRESERVED_BY_CALLEE 1 */

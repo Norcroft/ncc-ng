@@ -52,13 +52,29 @@
 #  endif
 #endif
 
+
+#ifdef __APPLE__
+#  define HOST_SYSTEM "macOS"
+#elif __linux__
+#  define HOST_SYSTEM "Linux"
+#elif __CC_NORCROFT
+#  define HOST_SYSTEM "RISCiX"
+#endif
+
+#ifdef HOST_SYSTEM
+#  define BRACKETED_HOST " (" HOST_SYSTEM ")"
+#else
+#  define BRACKETED_HOST ""
+#endif
+
 /* Note the comment in mip/version.h re the 4 nulls at end of string.   */
 
 #ifdef STATIC_BANNER
 
-static char cc_banner[] =  "Norcroft " \
+static char cc_banner[] =  "Norcroft-NG " \
                            TARGET_SYSTEM " " TARGET_MACHINE " " LANGUAGE \
-                           " vsn " VERSION_STRING " [" __DATE__ "]\0\0\0";
+                           " vsn " VERSION_STRING BRACKETED_HOST \
+                           " [" __DATE__ "]\0\0\0";
 
 char *version_banner(void)
 {
@@ -77,9 +93,9 @@ static char cc_banner[128] = "";        /* expression instead of 128?   */
 char *version_banner(void)
 {   if (cc_banner[0]=='\0')
       {
-        sprintf(cc_banner, "Norcroft %s %s %s vsn %s [%s]\0\0\0",
+        sprintf(cc_banner, "Norcroft-NG %s %s %s vsn %s%s [%s]\0\0\0",
                            TARGET_SYSTEM, TARGET_MACHINE, LANGUAGE,
-                           VERSION_STRING, __DATE__);
+                           VERSION_STRING, BRACKETED_HOST, __DATE__);
       }
     return(cc_banner);
 }
