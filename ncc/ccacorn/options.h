@@ -93,7 +93,6 @@
                                          /* unset => defaults to host */
 
 #ifdef COMPILING_ON_UNIX
-#  define TARGET_IS_UNIX    1
 #  define HOST_WANTS_NO_BANNER 1
 
 /* #define TARGET_HAS_DIVREM_FUNCTION 1 -- divide fn also returns remainder.*/
