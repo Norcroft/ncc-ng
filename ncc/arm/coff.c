@@ -165,11 +165,9 @@ static int32 obj_lnno;
 static int32 (*(xcodevec[MAXCODESEGS]))[CODEVECSEGSIZE], codesize;
 
 #ifdef TARGET_HAS_BYTE_INSTRUCTIONS
-#define xcode_byte_(q) ((unsigned8 *)(*xcodevec[(q)>>(CODEVECSEGBITS+2)])) \
-                                  [(q)&(CODEVECSEGSIZE*4-1)]
+#define xcode_byte_(q) ((unsigned8 *)(*xcodevec[CODE_SEG_INDEX(q)]))[CODE_BYTE_INDEX((q)]
 #else
-#define xcode_inst_(q) (*xcodevec[(q)>>(CODEVECSEGBITS+2)]) \
-                                  [((q)>>2)&(CODEVECSEGSIZE-1)]
+#define xcode_inst_(q) (*xcodevec[CODE_SEG_INDEX(q)])[CODE_ELEM_INDEX(q)]
 #endif
 
 #define get_code(q)   xcode_inst_(q)

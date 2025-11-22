@@ -116,21 +116,26 @@ extern int32 bss_size;
 /* xxx/gen.c obj.c and asm.c should now only access 'codeandflagvec'    */
 /* via the macros code_xxx_() below.                                    */
 
+/* Helper macros for segment and index calculations */
+#define CODE_SEG_INDEX(q)       ((q) >> (CODEVECSEGBITS + 2))
+#define CODE_BYTE_INDEX(q)      ((q) & (CODEVECSEGSIZE*4 - 1))
+#define CODE_HWORD_INDEX(q)     (((q) >> 1) & (CODEVECSEGSIZE*2 - 1))
+#define CODE_ELEM_INDEX(q)      (((q) >> 2) & (CODEVECSEGSIZE - 1))
+
 /* ECN: Modified to allow non-aligned words if TARGET_HAS_HALFWORD_INSTRUCTIONS
  *      Unfortunately there are large scale assumptions elsewhere that
  *      codeandflagvec addresses an array of 32 bit words.
  */
 #ifdef TARGET_HAS_HALFWORD_INSTRUCTIONS
 #  define CodeFlag_t unsigned char
-extern struct CodeAndFlag { unsigned16 code[CODEVECSEGSIZE*2];
-                            CodeFlag_t flag[CODEVECSEGSIZE*2]; }
-                   *codeandflagvec[CODEVECSEGMAX];
-#define code_byte_(q) ((unsigned8 *)(codeandflagvec[(q) >> CODEVECSEGBITS+2]->code)) \
-                                    [(q) & (CODEVECSEGSIZE*4-1)]
-#define code_hword_(q) (codeandflagvec[(q) >> (CODEVECSEGBITS+2)])-> \
-                                code[((q) >> 1) & (CODEVECSEGSIZE*2-1)]
-#define code_flag_(q) (codeandflagvec[(q) >> (CODEVECSEGBITS+2)])-> \
-                                flag[((q) >> 1) & (CODEVECSEGSIZE*2-1)]
+extern struct CodeAndFlag {
+    unsigned16 code[CODEVECSEGSIZE*2];
+    CodeFlag_t flag[CODEVECSEGSIZE*2];
+} *codeandflagvec[CODEVECSEGMAX];
+
+#define code_byte_(q) ((unsigned8 *)(codeandflagvec[CODE_SEG_INDEX(q)]->code)) [CODE_BYTE_INDEX(q)]
+#define code_hword_(q) (codeandflagvec[CODE_SEG_INDEX(q)])->code[CODE_HWORD_INDEX(q)]
+#define code_flag_(q) (codeandflagvec[CODE_SEG_INDEX(q)])->flag[CODE_HWORD_INDEX(q)]
 #define code_inst_(q) (host_lsbytefirst ? \
                         (code_hword_(q) | (code_hword_(q+2) << 16)) : \
                         ((code_hword_(q) << 16) | code_hword_(q+2)))
@@ -138,38 +143,36 @@ extern struct CodeAndFlag { unsigned16 code[CODEVECSEGSIZE*2];
         ((code_hword_(q) = (unsigned16)(v)), (code_hword_((q)+2) = (v) >> 16)) : \
         ((code_hword_(q) = (v) >> 16), (code_hword_((q)+2) = (unsigned16)(v))))
 #else
+
 #ifdef TARGET_HAS_BYTE_INSTRUCTIONS
 #  define CodeFlag_t int32      /* dying?  */
 #else
 #  define CodeFlag_t unsigned char
 #endif
-extern struct CodeAndFlag { int32 code[CODEVECSEGSIZE];
-                            CodeFlag_t flag[CODEVECSEGSIZE]; }
-                   *codeandflagvec[CODEVECSEGMAX];
-#define code_inst_(q) (codeandflagvec[(q) >> CODEVECSEGBITS+2])-> \
-                                      code[(q)>>2 & CODEVECSEGSIZE-1]
+
+extern struct CodeAndFlag {
+    int32      code[CODEVECSEGSIZE];
+    CodeFlag_t flag[CODEVECSEGSIZE];
+} *codeandflagvec[CODEVECSEGMAX];
+
+#define code_inst_(q) (codeandflagvec[CODE_SEG_INDEX(q)])->code[CODE_ELEM_INDEX(q)]
 #define set_code_inst_(q,v) (code_inst_(q)=v)
-#define code_flag_(q) (codeandflagvec[(q)>>CODEVECSEGBITS+2])-> \
-                                      flag[(q)>>2 & CODEVECSEGSIZE-1]
-#endif
+#define code_flag_(q) (codeandflagvec[CODE_SEG_INDEX(q)])->flag[CODE_ELEM_INDEX(q)]
+#endif // TARGET_HAS_HALFWORD_INSTRUCTIONS
+
 #ifndef NO_ASSEMBLER_OUTPUT     /* i.e. lay off otherwise */
-  extern VoidStar (*(codeasmauxvec[CODEVECSEGMAX]))[CODEVECSEGSIZE];
-# define code_aux_(q)  (*codeasmauxvec[(q) >> CODEVECSEGBITS+2]) \
-                                      [(q)>>2 & CODEVECSEGSIZE-1]
-#endif
+extern VoidStar (*(codeasmauxvec[CODEVECSEGMAX])) [CODEVECSEGSIZE];
+# define code_aux_(q) (*codeasmauxvec[CODE_SEG_INDEX(q)]) [CODE_ELEM_INDEX(q)]
+#endif // !NO_ASSEMBLER_OUTPUT
 
 /* The following macros provide easy access to blocks for xxx/obj.c     */
 #define code_instvec_(i)   (&(codeandflagvec[i]->code)[0])
 #define code_flagvec_(i)   (&(codeandflagvec[i]->flag)[0])
 
 #ifdef TARGET_HAS_BYTE_INSTRUCTIONS
-#define code_byte_(q) \
-   ((unsigned char *)(codeandflagvec[(q) >> CODEVECSEGBITS+2]->code)) \
-                            [(q) & 4*CODEVECSEGSIZE-1]
+#define code_byte_(q) ((unsigned char *)(codeandflagvec[CODE_SEG_INDEX(q)]->code)) [CODE_BYTE_INDEX(q)]
 /* miserable macro to interpret int32 flags as 4 byte flags.  Hmm.      */
-#define flag_byte_(q) \
-   ((unsigned char *)(codeandflagvec[(q) >> CODEVECSEGBITS+2]->flag)) \
-                            [(q) & 4*CODEVECSEGSIZE-1]
+#define flag_byte_(q) ((unsigned char *)(codeandflagvec[CODE_SEG_INDEX(q)]->flag)) [CODE_BYTE_INDEX(q)]
 #endif
 extern struct LabList *asm_lablist; /* exported to xxxgen.c */
 
