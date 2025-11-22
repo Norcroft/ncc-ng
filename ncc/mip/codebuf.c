@@ -71,9 +71,11 @@ static bool codebuf_inroutine;
 
 /* codeandflagvec and codeasmauxvec are doubly indexed by a BYTE address: */
 struct CodeAndFlag *codeandflagvec[CODEVECSEGMAX];
+
 #ifndef NO_ASSEMBLER_OUTPUT     /* i.e. lay off otherwise */
-  VoidStar (*(codeasmauxvec[CODEVECSEGMAX]))[CODEVECSEGSIZE];
-#endif
+VoidStar (*(codeasmauxvec[CODEVECSEGMAX])) [CODEVECSEGSIZE];
+#endif // !NO_ASSEMBLER_OUTPUT
+
 static int32 codeveccnt;
 int32 codebase, codep;
 static int32 maxprocsize;
@@ -576,7 +578,7 @@ void outcodewordaux(int32 w, int32 f, VoidStar aux)
 /* Only set up codeasmauxvec to store aux items if asmstream is active. */
         codeasmauxvec[codeveccnt] = (VoidStar (*)[CODEVECSEGSIZE]) (
             asmstream ? BindAlloc(sizeof(*codeasmauxvec[0])) : DUFF_ADDR);
-#endif
+#endif // !NO_ASSEMBLER_OUTPUT
         codeandflagvec[codeveccnt] =
             (struct CodeAndFlag *) BindAlloc(sizeof(*codeandflagvec[0]));
 #ifdef TARGET_HAS_HALFWORD_INSTRUCTIONS

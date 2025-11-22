@@ -148,8 +148,7 @@ ____notyetfinished;
 /* AM: @@@ codesize seems simply to duplicate 'codebase' (q.v.).        */
 static int32 (*(xcodevec[MAXCODESEGS]))[CODEVECSEGSIZE], codesize;
 
-#define xcode_inst_(q) (*xcodevec[(q)>>(CODEVECSEGBITS+2)]) \
-                                  [((q)>>2)&(CODEVECSEGSIZE-1)]
+#define xcode_inst_(q) (*xcodevec[CODE_SEG_INDEX(q)]) [CODE_ELEM_INDEX(q)]
 
 #ifdef TARGET_HAS_HALFWORD_INSTRUCTIONS
 /* A fix up for machines (like Clipper) which may have unaligned relocated */
