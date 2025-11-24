@@ -635,7 +635,7 @@ static pp_uncompression_record hdrfile;
 
 FILE *open_builtin_header(const char *name, pp_uncompression_record **urp)
 {   int count;
-    if ((feature & FEATURE_PCC) && StrEq(name, "strings.h"))
+    if (HasFeature(Feature_PCC) && StrEq(name, "strings.h"))
         name = "string.h";
     for (count=0; builtin_headers[count].name != 0; count++) {
         if (StrEq(name, builtin_headers[count].name))
@@ -759,7 +759,7 @@ static int pp_fillbuf(void)
         {   if (pp_rdptr != NULL && pp_rdptr[-1] != '\n')
             {
 #ifndef HOST_DOES_NOT_FORCE_TRAILING_NL
-                if (feature & FEATURE_FUSSY)
+                if (HasFeature(Feature_Fussy))
                     cc_pccwarn(pp_rerr_newline_eof);
 #endif
                 s[n++] = '\n';                    /* fake nl before EOF */
@@ -778,7 +778,7 @@ static int pp_fillbuf(void)
     if (listingstream &&
         (n > 0) &&                                        /* => NOT EOF */
         !(pp_filenumber & 0x80000000) &&
-        (feature & FEATURE_UNEXPANDED_LISTING))
+        HasFeature(Feature_UnexpandedListing))
     {   fwrite(s, 1, (size_t)n, listingstream);
         /* we may be listing part of a line, so care with \n condition. */
         if (s[n-1] == '\n')
@@ -881,7 +881,7 @@ case '-':   ch = '~';   break;
     /* In -pcc mode, can get here with ch == PP_TOKSEP - should not fault.  */
     /* Otherwise, this function never gets called in -pcc mode (see pp_init */
     /* and how it sets pp_translate[] for an explanation).                  */
-    if (!(feature & FEATURE_PCC))
+    if (!HasFeature(Feature_PCC))
     {
         if (pp_incomment != NO_COMMENT) cc_warn(pp_rerr_nonprint_char, ch);
         else
@@ -919,7 +919,7 @@ static int pp_comment(int ch)
 /* remainder of it. We do this to save per-character overhead in pp_rdch(), */
 /* which is, otherwise, burdened with this monster's procedure prologue...  */
 {   int comment_nest = 1;
-    if (feature & FEATURE_PPCOMMENT)
+    if (HasFeature(Feature_PPComment))
     {   /* Assert: ch == '{' || ch == '*' */
         /* N.B. output to stdout BY DEFINITION of cc -C. Similarly below */
         if (ch != '{') putc(COMMENT_START, stdout);
@@ -928,11 +928,11 @@ static int pp_comment(int ch)
     pp_incomment = BALANCED_COMMENT;
     ch = pp_rdch1();
     for (;;)
-    {   if (ch != PP_EOF && feature & FEATURE_PPCOMMENT) putc(ch, stdout);
+    {   if (ch != PP_EOF && HasFeature(Feature_PPComment)) putc(ch, stdout);
         switch (ch)
         {   case PP_EOF: cc_err(pp_err_eof_comment); return PP_EOF;
             case '\n':
-                if (!(feature & FEATURE_PPCOMMENT)) ++pp_rdch3nls;
+                if (!HasFeature(Feature_PPComment)) ++pp_rdch3nls;
                 break;
             default:
                 break;
@@ -945,7 +945,7 @@ static int pp_comment(int ch)
                 } else {
                     --comment_nest;
                     if (comment_nest == 0) {
-                        if (feature & FEATURE_PPCOMMENT) putc(ch, stdout);
+                        if (HasFeature(Feature_PPComment)) putc(ch, stdout);
                         return ' ';
                     }
                 }
@@ -955,7 +955,7 @@ static int pp_comment(int ch)
                 ch = pp_rdch1();
                 if (ch == '*')
                 {
-                    if (!(feature & FEATURE_PCC))
+                    if (!HasFeature(Feature_PCC))
                         cc_warn(pp_warn_nested_comment, "/*");
                 }
                 continue;
@@ -964,8 +964,8 @@ static int pp_comment(int ch)
                 if (ch == COMMENT_END) --comment_nest;
                 if (comment_nest == 0)
                 {
-                    if (feature & FEATURE_PPCOMMENT) putc(ch, stdout);
-                    if (feature & (FEATURE_PCC | FEATURE_PPCOMMENT))
+                    if (HasFeature(Feature_PPComment)) putc(ch, stdout);
+                    if (HasFeature(Feature_PCC) || HasFeature(Feature_PPComment))
                         return PP_TOKSEP;      /* comments vanish but have */
                     else                       /* separating value...      */
                         return ' ';            /* comments -> single space */
@@ -1052,19 +1052,19 @@ static int pp_rdch(void)
     if (ch != '{')
 #endif
     {   ch = pp_rdch1();
-        if (LanguageIsCPlusPlus || !(feature & FEATURE_FUSSY))
+        if (LanguageIsCPlusPlus || !HasFeature(Feature_Fussy))
             if (ch == '/')
             {   pp_incomment = EOL_COMMENT;
-                if (feature & FEATURE_PPCOMMENT)
+                if (HasFeature(Feature_PPComment))
                 { putc('/', stdout); putc(ch, stdout); }
                 for (;;)
                     {   if ((ch = pp_rdch1()) == '\n' || ch == PP_EOF)
                         {   pp_incomment = NO_COMMENT;
-                            if ((feature & FEATURE_PPCOMMENT) && ch == '\n')
+                            if (HasFeature(Feature_PPComment) && ch == '\n')
                                 putc(ch, stdout);
                             return ch;
                         }
-                        else if (feature & FEATURE_PPCOMMENT) putc(ch, stdout);
+                        else if (HasFeature(Feature_PPComment)) putc(ch, stdout);
                     }
             }
             if (ch != '*')             /* unget ch... */
@@ -1116,7 +1116,7 @@ static void pp_number(int pp_ch)
         if (!pp_skipping) pp_wrch(pp_ch);
         pp_ch = pp_rdch();
         if ((c == 'e' || c == 'E') && (pp_ch == '+' || pp_ch == '-') &&
-                                      !(feature & FEATURE_PCC))
+                                      !HasFeature(Feature_PCC))
         {   if (!pp_skipping) pp_wrch(pp_ch);
             pp_ch = pp_rdch();
         }
@@ -1154,9 +1154,9 @@ static int pp_copystring(int quote)
   { switch (pp_ch)
     { case PP_EOF: cc_err(pp_err_eof_string); goto out;
       case '\n': --pp_fl->l; /* correct line numbers in following msgs */
-                 if (feature & FEATURE_PCC)
+                 if (HasFeature(Feature_PCC))
                      quote = 0;
-                 else if (pp_skipping && !(feature & FEATURE_FUSSY))
+                 else if (pp_skipping && !HasFeature(Feature_Fussy))
                  {   cc_warn(pp_warn_eol_string_skipped, (int)quote);
                      quote = 0;
                  }
@@ -1397,11 +1397,11 @@ static void pp_expand(PP_HASHENTRY *p, int32 nlsinargs)
   }
   ++pp_expand_level;
 #endif
-  if (!(feature & FEATURE_PCC)) pp_savch(PP_TOKSEP);    /* no glueing   */
+  if (!HasFeature(Feature_PCC)) pp_savch(PP_TOKSEP);    /* no glueing   */
   while ((dch = *dp) != 0) switch (dch)
   {
     case '%':
-        if (feature & FEATURE_PCC || dp[1] != ':')
+        if (HasFeature(Feature_PCC) || dp[1] != ':')
           goto defaultcase;
         if (dp[2] == '%' && dp[3] == ':') {
           hashflag |= 2;
@@ -1415,7 +1415,7 @@ static void pp_expand(PP_HASHENTRY *p, int32 nlsinargs)
         while (*dp == ' ') dp++;    /* whitespace ANSI normalised.  */
         break;
     case '#':
-        if ((feature & FEATURE_PCC) ||
+        if (HasFeature(Feature_PCC) ||
             (pp_hashnoargs_(p) && dp[1] != '#'))
             goto defaultcase;
         /* no '#' operators in pcc-mode macro-expansion... */
@@ -1428,7 +1428,7 @@ static void pp_expand(PP_HASHENTRY *p, int32 nlsinargs)
         break;
     case '\'':
     case '"':
-        if (!(feature & FEATURE_PCC))
+        if (!HasFeature(Feature_PCC))
         { dp += pp_savstring(dp);
           hashflag = 0;
           break;
@@ -1447,7 +1447,7 @@ static void pp_expand(PP_HASHENTRY *p, int32 nlsinargs)
           a = pp_hashnoargs_(p) ? 0 :
                   pp_findarg(pp_hasharglist_(p), dp-i, i);
           if (hashflag == 0 &&  /* not # or ## prefixed, maybe suffixed */
-              !(feature & FEATURE_PCC))
+              !HasFeature(Feature_PCC))
           { char const *s = dp;
             while (*s == ' ') ++s;      /* whitespace ANSI normalised.  */
             if ((s[0] == '#' && s[1] == '#')
@@ -1463,7 +1463,7 @@ static void pp_expand(PP_HASHENTRY *p, int32 nlsinargs)
             {   cc_warn(pp_warn_macro_arg_exp_in_string,
                     pp_argname_(a), pp_hashname_(p), in_string, in_string);
             }
-            if (hashflag == 0 && !(feature & FEATURE_PCC))
+            if (hashflag == 0 && !HasFeature(Feature_PCC))
             { PP_HASHENTRY *oldsleepers = pp_noexpand;
               pp_noexpand = 0;
               pp_savch(PP_TOKSEP);                      /* no glueing   */
@@ -1508,11 +1508,11 @@ static void pp_expand(PP_HASHENTRY *p, int32 nlsinargs)
         if (dp[0] == ' ' &&
             ((dp[1] == '#' && dp[2] == '#') ||
              (dp[1] == '%' && dp[2] == ':' && dp[3] == '%' && dp[4] == ':')) &&
-            !(feature & FEATURE_PCC)) dp++;
+            !HasFeature(Feature_PCC)) dp++;
         hashflag = 0;
         break;
   }
-  if (!(feature & FEATURE_PCC)) pp_savch(PP_TOKSEP);    /* no glueing   */
+  if (!HasFeature(Feature_PCC)) pp_savch(PP_TOKSEP);    /* no glueing   */
   if (!pp_hashnoargs_(p))
   { PP_ARGENTRY *a;
     for (a = pp_hasharglist_(p); a != 0; a = pp_argchain_(a))
@@ -1523,7 +1523,7 @@ static void pp_expand(PP_HASHENTRY *p, int32 nlsinargs)
   if (pp_scanidx < 0)
   {
     while (nlsinargs-- > 0) pp_savch('\n');  /* save up the NL's in args */
-    if (!(feature & FEATURE_PCC))
+    if (!HasFeature(Feature_PCC))
         /* suppress recursive invocations in ANSI mode -- PCC loops!    */
         pp_sleep_name(p, pp_ebuftop - (pp_ebufbase + PP_UNRDCHMAX));
     if (debugging(DEBUG_PP))
@@ -1533,7 +1533,7 @@ static void pp_expand(PP_HASHENTRY *p, int32 nlsinargs)
     pp_abufptr = pp_abufbase;    /* clear for (top level) rescan */
   }
   else
-    if (!(feature & FEATURE_PCC))
+    if (!HasFeature(Feature_PCC))
         /* suppress recursive invocations in ANSI mode -- PCC loops!    */
         pp_sleep_name(p, pp_ebuftop - (pp_ebufbase + PP_UNRDCHMAX)
                                     - aftercallchars);
@@ -1611,7 +1611,7 @@ static void pp_rd_args(PP_HASHENTRY *p, int32 uselinect)
                 while (parcnt-- > 0) pp_wrch(')');
                 goto endofargs;
       case '\n': ++arglinect;
-                 if (pp_in_directive && !(feature & FEATURE_PCC))
+                 if (pp_in_directive && !HasFeature(Feature_PCC))
 /* This helps to force a diagnostic in #if f(1,<nl>2) as required by    */
 /* the ANSI C standard. Constraint: #if ... occupies only one line.     */
                  {  pp_wrch(ch);
@@ -1642,7 +1642,7 @@ ansitoksep:     if (pp_abufptr != pp_abufbase+abufarg)
                 /* drop through to default case */
       default:  /* NB: we do not need to use pp_number here.            */
                 if (ch == PP_TOKSEP)
-                {   if (!(feature & FEATURE_PCC)) goto ansitoksep;
+                {   if (!HasFeature(Feature_PCC)) goto ansitoksep;
                     /* else for PCC ignore PP_TOKSEP in args.  Why?     */
                 }
                 else pp_wrch(ch);
@@ -1725,7 +1725,7 @@ static bool pp_checkid(int pp_ch)
        cc_msg("\n");
 #endif
   if (i == 1 && pp_widestrbeg(pp_abufptr[0], pp_ch) &&
-      !(feature & FEATURE_PCC)) noexpandflag = 1;
+      !HasFeature(Feature_PCC)) noexpandflag = 1;
   p = noexpandflag ? NULL : pp_lookup(pp_abufptr, hash);
   if (p == NULL)
   { if (!(pp_inhashif && StrEq("defined",pp_abufptr)))
@@ -1941,8 +1941,8 @@ static void pp_define(int pp_ch, bool noifdef)
     PP_HASHENTRY *p;
     PP_ARGENTRY *arglist = 0;
     enum { FIRST_TOKEN, NORMAL, SEEN_HASH, SEEN_HASHHASH } state = FIRST_TOKEN;
-    int32 feature_comment = feature & FEATURE_PPCOMMENT;
-    feature &= ~FEATURE_PPCOMMENT;
+    bool feature_comment = HasFeature(Feature_PPComment);
+    ClearFeature(Feature_PPComment);
     if (pp_ch != '(')
       p = (PP_HASHENTRY *) pp_new_(PP_NOARGHASHENTRY), pp_hashnoargs_(p) = 1;
     else
@@ -1956,7 +1956,7 @@ static void pp_define(int pp_ch, bool noifdef)
          { if (pp_ch == ')' && params == 0) break;
            cc_err(pp_err_missing_parameter, name);
            pp_skip_linetokens(pp_ch);
-           feature |= feature_comment;
+           if (feature_comment) SetFeature(Feature_PPComment);
            return;
          }
          do { pp_stuffid_(pp_ch); pp_ch = pp_rdch();
@@ -1969,7 +1969,7 @@ static void pp_define(int pp_ch, bool noifdef)
       if (pp_ch != ')')
       {   cc_err(pp_err_missing_comma, name);
           pp_skip_linetokens(pp_ch);
-          feature |= feature_comment;
+          if (feature_comment) SetFeature(Feature_PPComment);
           return;
       }
       pp_ch = pp_rdch();
@@ -1987,7 +1987,7 @@ static void pp_define(int pp_ch, bool noifdef)
 /* Turn multiple spaces (or tabs) to one space, lose trailing spaces.   */
 /* Initial spaces have already been removed and comments are now space. */
 /* Beware warnings for differing white space in pcc-mode (like Reiser?) */
-        if ((pp_ch == ' ' || pp_ch == '\t') && !(feature & FEATURE_PCC))
+        if ((pp_ch == ' ' || pp_ch == '\t') && !HasFeature(Feature_PCC))
         {        pp_ch = pp_skipb1(pp_ch);
                  if (!(pp_ch == '\n' || pp_ch == PP_EOF)) pp_stuffid_(' ');
         }
@@ -2011,7 +2011,7 @@ static void pp_define(int pp_ch, bool noifdef)
     case '"':    pp_stuffstring(pp_ch,0,0);
                  break;
 
-    case '%':    if (feature & FEATURE_PCC) goto defolt;
+    case '%':    if (HasFeature(Feature_PCC)) goto defolt;
                  pp_ch = pp_rdch();
                  pp_stuffid_('%');
                  if (pp_ch != ':')
@@ -2037,7 +2037,7 @@ static void pp_define(int pp_ch, bool noifdef)
                    }
                  }
                  continue;
-    case '#':    if (feature & FEATURE_PCC) goto defolt;
+    case '#':    if (HasFeature(Feature_PCC)) goto defolt;
                  pp_ch = pp_rdch();
                  pp_stuffid_('#');
                  if (pp_ch != '#')
@@ -2069,7 +2069,7 @@ static void pp_define(int pp_ch, bool noifdef)
                     else
                       cc_pccwarn(pp_rerr_redefinition, pp_hashname_(p));
                 }
-                else if (feature & (FEATURE_FUSSY|FEATURE_PREDECLARE))
+                else if (HasFeature(Feature_Fussy) || HasFeature(Feature_Predeclare))
                   cc_warn(pp_warn_redefinition, pp_hashname_(p));
               }
             }
@@ -2085,7 +2085,8 @@ static void pp_define(int pp_ch, bool noifdef)
             if (pp_hashfirst == 0) pp_hashfirst = pp_hashlast = p;
             else pp_hashdefchain_(pp_hashlast) = p, pp_hashlast = p;
             pp_unrdch(pp_ch);
-            feature |= feature_comment;
+            if (feature_comment)
+                SetFeature(Feature_PPComment);
             return;               /* gasp */
         }
         state = NORMAL;
@@ -2168,7 +2169,7 @@ static void pp_h_ifdef(int pp_ch, bool skipelsepart)
   }
   else
   {   p = NULL;
-      if (feature & FEATURE_PCC)
+      if (HasFeature(Feature_PCC))
           cc_warn(pp_err_ifdef);    /* @@@ is this really suppressible? */
       else
           cc_err(pp_err_ifdef);
@@ -2336,7 +2337,7 @@ void pp_push_include(char const *fname, int lquote, FileLine fl)
   char const *hostname;
 
   if (lquote == '<' &&
-      !(feature & FEATURE_PCC || suppress & D_PPNOSYSINCLUDECHECK))
+      !(HasFeature(Feature_PCC) || suppress & D_PPNOSYSINCLUDECHECK))
   {   static char const * const ansiheaders[] = {
             "assert.h", "ctype.h", "errno.h", "float.h", "iso646.h",
             "limits.h", "locale.h", "math.h", "setjmp.h", "signal.h",
@@ -2424,8 +2425,8 @@ void pp_push_include(char const *fname, int lquote, FileLine fl)
       /* NB profile_find() sets profile_ptr & pp_filenumber */
       pp_propoint_(fs) = profile_ptr; profile_find(fname);
       /* Set MSB of pp_filenumber if listing is not wanted at this level */
-      if (!((lquote != '<' && (feature & FEATURE_USERINCLUDE_LISTING)) ||
-          (feature & FEATURE_SYSINCLUDE_LISTING)))
+      if (!((lquote != '<' && HasFeature(Feature_UserIncludeListing)) ||
+            HasFeature(Feature_SysIncludeListing)))
       { pp_filenumber |= 0x80000000;
         list_this_file = 0;
       }
@@ -2737,9 +2738,9 @@ static void pp_h_error(int pp_ch)
 #ifdef EXTENSION_SYSV
 static void pp_h_ident(int pp_ch)
 {   /* should we inhibit this when in a system include file?            */
-#ifdef NEVER
-    if (!(feature & FEATURE_PCC)) cc_rerr(pp_rerr_hash_ident);
-#endif
+ #ifdef NEVER
+    if (!HasFeature(Feature_PCC)) cc_rerr(pp_rerr_hash_ident);
+ #endif
     pp_h_error_ident(pp_ch,0);
 }
 #endif
@@ -2801,7 +2802,7 @@ static void pp_directive(void)
       /* Oughtn't we to discourage #<number> in f77?  PCC mode?         */
       if (!PP_EOLP(pp_ch)
 #ifndef FORTRAN
-           && (feature & FEATURE_PCC)
+           && HasFeature(Feature_PCC)
 #endif
          )
           pp_h_line(pp_ch);
@@ -2811,7 +2812,7 @@ static void pp_directive(void)
   else
   { /* AM: @@@ ANSI ambiguity.  Is #if 0; #wombat; #endif ok?           */
     if (!pp_skipping) cc_err(pp_err_unknown_directive, v);
-    else if (feature & FEATURE_PREDECLARE)
+    else if (HasFeature(Feature_Predeclare))
         /* tick off the user anyway if (s)he asked for it!              */
         cc_warn(pp_err_unknown_directive, v);
     pp_skip_linetokens(pp_ch);
@@ -2820,8 +2821,8 @@ static void pp_directive(void)
   if (!PP_EOLP(pp_ch) && pp_ch != PP_EOF)
   {
       if (!(cpp_allows_junk &&
-              (feature & (FEATURE_PCC | FEATURE_LIMITED_PCC) ||
-               suppress & D_PPALLOWJUNK)))
+              (HasFeature(Feature_PCC) || HasFeature(Feature_LimitedPCC) ||
+               (suppress & D_PPALLOWJUNK))))
           cc_rerr(pp_rerr_junk_eol, v);
       pp_skip_linetokens(pp_ch);
   }
@@ -2927,7 +2928,7 @@ static int pp_process(void)
     case ' ':
     case '\t':if (!pp_skipping) pp_wrch(pp_ch);
 #ifndef PASCAL_OR_FORTRAN
-              if (!(feature & FEATURE_PCC))
+              if (!HasFeature(Feature_PCC))
 #endif
                   /* spaces may precede '#' only in ANSI C */
                   pp_ch = pp_lastch;
@@ -2964,7 +2965,7 @@ static int pp_process(void)
                 else
 #endif
                 if (pp_ch == PP_TOKSEP)
-                {   if (!(feature & FEATURE_PCC)) pp_wrch(' ');
+                {   if (!HasFeature(Feature_PCC)) pp_wrch(' ');
                     /* else lose it in PCC mode.                        */
                 }
                 else
@@ -2982,7 +2983,7 @@ static int pp_process(void)
 static int pp_listchar(int ch)
 {   /* AM: merge this code with other FEATURE_UNEXPANDED... code above? */
     if (!(pp_filenumber & 0x80000000) &&
-        !(feature & FEATURE_UNEXPANDED_LISTING))
+        !HasFeature(Feature_UnexpandedListing))
     {   if (ch != PP_EOF)
         {   putc(ch, listingstream);
             if (ch == '\n')
@@ -3176,7 +3177,7 @@ void PP_DumpState(FILE *f) {
 
 void pp_tidyup(void)
 { PP_HASHENTRY *p;
-  if (feature & FEATURE_PPNOUSE)
+  if (HasFeature(Feature_PPNoUse))
       for (p = pp_hashfirst; p != 0; p = pp_hashdefchain_(p))
       { if (pp_hashuses_(p) == 0)
           cc_warn(pp_warn_unused_macro, pp_hashname_(p));
@@ -3277,7 +3278,7 @@ static void pp_init2(FILE *stream, bool preinclude)
   for (ch = 0;  ch <= UCHAR_MAX;  ++ch)
   {   int tch;
       if (isprint(ch)             ||  /* most common case */
-          (feature & FEATURE_PCC) ||  /* no more conversion */
+          HasFeature(Feature_PCC) ||  /* no more conversion */
           ch == '\t'              ||  /* allowable space ch */
           legal_non_isprint(ch))
           tch = ch;
@@ -3300,7 +3301,7 @@ static void pp_init2(FILE *stream, bool preinclude)
 #ifdef PASCAL
   pp_translate['{']  = PP_TOKSEP;
 #endif
-  if (feature & FEATURE_PCC)
+  if (HasFeature(Feature_PCC))
   {   pp_ctype['$']  = PP_MACSTART + PP_CIDCHAR;
       pp_translate[PP_TOKSEP]  = PP_TOKSEP;
       pp_translate[PP_NOEXPAND]  = PP_TOKSEP;
@@ -3317,7 +3318,7 @@ static void pp_init2(FILE *stream, bool preinclude)
           if (LanguageIsCPlusPlus)
 /* [ES] requires the following to be set, note that __STDC__ is too!.   */
           {   (void)pp_predefine2("__cplusplus", PP__ONE);
-              if (feature & FEATURE_CFRONT)
+              if (HasFeature(Feature_CFront))
                   (void)pp_predefine2("__CFRONT_LIKE", PP__ONE);
           }
       }

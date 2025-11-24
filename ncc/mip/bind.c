@@ -181,7 +181,7 @@ static void check_extern(Symstr *s)
 /* First an option to check ansi conformance ... */
 /* (The return below ensures only one is executed.  Because of room for  */
 /* the back pointer only one can be active at once, unfortunately).      */
-    if (feature & FEATURE_6CHARMONOCASE)
+    if (HasFeature(Feature_6CharMonocase))
     {   char ch, v[6+1];
         int n = 0;
         while ((ch = symname_(s)[n]) != 0 && n < 6) v[n++] = safe_tolower(ch);
@@ -1217,7 +1217,7 @@ static bool addTentativeDefn(
     if (size != 0)
     {   td->size = size;
 #ifdef TARGET_HAS_BSS
-        td->maybebss = (feature & FEATURE_PCC) || (size > BSS_THRESHOLD);
+        td->maybebss = HasFeature(Feature_PCC) || (size > BSS_THRESHOLD);
 #else
         td->maybebss = 0;
 #endif
@@ -1398,7 +1398,7 @@ static void check_for_fwd_static_decl(Binder *b, Symstr *sv)
 {
     /* The following feature optionally enables spurious forward */
     /* static declarations to be weeded out.                     */
-    if (feature & FEATURE_PREDECLARE &&
+    if (HasFeature(Feature_Predeclare) &&
         !(binduses_(b) & u_referenced) &&
         bindstg_(b) & bitofstg_(s_static))
         cc_warn(bind_warn_unused_static_decl, sv);
@@ -1632,7 +1632,7 @@ static Binder *instate_declaration_1(DeclRhsList *d, int declflag)
 /* but this is compatible with previous version.                        */
             else if (bindstg_(b) & b_undef  &&
                      !(bindstg_(b) & u_bss) &&
-                      (feature & FEATURE_PCC ||
+                      (HasFeature(Feature_PCC) ||
                         !(bindstg_(b) & bitofstg_(s_extern) &&
                           bindstg_(b) & b_implicitstg &&
                           is_openarray(bindtype_(b)))
@@ -1643,7 +1643,7 @@ static Binder *instate_declaration_1(DeclRhsList *d, int declflag)
                 /*    (Provisional) BSS tentatives have b_undef but     */
                 /*    they also have u_bss, which we avoid.  Messy!     */
                 /*    The delicate case: plain int [] has b_undef.      */
-                if (feature & FEATURE_PCC)
+                if (HasFeature(Feature_PCC))
                 {   /* pcc/as faults b is static or initialised plain,  */
                     /* d is static or plain (whether or not init'd).    */
                     if (!(bindstg_(b) & b_undef) &&
@@ -1664,7 +1664,7 @@ static Binder *instate_declaration_1(DeclRhsList *d, int declflag)
             }
             else if (!(bindstg_(b) & b_fnconst) &&
                      !(d->declstg  & b_fnconst) &&
-                     !(feature & FEATURE_PCC)   &&
+                     !HasFeature(Feature_PCC)   &&
                      is_tentative(sv))
                 check_ansi_linkage(b, d);
             else
@@ -1679,7 +1679,7 @@ static Binder *instate_declaration_1(DeclRhsList *d, int declflag)
             }
         }
         else
-        { if (feature & FEATURE_PREDECLARE)
+        { if (HasFeature(Feature_Predeclare))
           { /* The following is a feature to enable policing of a software */
             /* quality policy which says "only objects previously DECLARED */
             /* as extern (presumably in a header) may be DEFINED extern".  */
@@ -1701,11 +1701,11 @@ static Binder *instate_declaration_1(DeclRhsList *d, int declflag)
         {   TypeExpr *t = princtype(d->decltype);
             /* check args here too one day? */
             if (h0_(t) != t_fnap || !equivtype(typearg_(t), te_int))
-                if (!(feature & FEATURE_PCC) || (feature & FEATURE_FUSSY))
+                if (!HasFeature(Feature_PCC) || HasFeature(Feature_Fussy))
                     cc_warn(bind_warn_main_not_int);
         }
 
-        if (feature & FEATURE_PCC)
+        if (HasFeature(Feature_PCC))
         {    if ((d->declstg &
                   (bitofstg_(s_static)|b_fnconst|b_globalregvar|bitofstg_(s_typedef))
                  ) == bitofstg_(s_static) && (d->declstg & b_undef))
@@ -2314,7 +2314,7 @@ void bind_cleanup(void)
                     cc_warn(bind_warn_static_not_used, b);
             }
         }
-        else if (feature & FEATURE_NOUSE)
+        else if (HasFeature(Feature_NoUse))
         {   if (!(binduses_(b) & u_referenced) &&
                 !(bindstg_(b) & bitofstg_(s_typedef))) {
               if (bindstg_(b) & b_fnconst) {

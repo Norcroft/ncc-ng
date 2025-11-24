@@ -1066,7 +1066,7 @@ void RealRegisterUse(const Icode *ic, RealRegUse *u)
         case J_OPSYSK:
             use = argumentregs(ic->r2.i);
             def = resultregs(ic);
-            if (feature & FEATURE_INLINE_CALL_KILLS_LINKREG) c_in |= M_LR;
+            if (HasFeature(Feature_InlineCallKillsLinkReg)) c_in |= M_LR;
             c_out = reglist(R_A1, NARGREGS) | reglist(R_F0, NFLTARGREGS);
             c_out &= ~resultregs(ic);
             break;

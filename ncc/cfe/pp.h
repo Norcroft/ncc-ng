@@ -70,7 +70,7 @@ extern void pp_preundefine(char *s);
 extern void pp_tidyup(void);
 /*
  * A finalisation procedure for the pre-processor.
- * If feature PP_NOUSE is enabled then unused pre-processor macros are
+ * If feature PP_NoUse is enabled then unused pre-processor macros are
  * reported on. If listing output is enabled and there is an open listing
  * file then the listing file is finalised (but not closed). If pre-processor
  * debugging is enabled (ENABLE_PP) then summary statistics are output.

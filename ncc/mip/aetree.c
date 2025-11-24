@@ -1099,7 +1099,7 @@ static void pr_typespec(TypeExpr *x)
     {   pr_cv(&m);
         if (int_islonglong_(m)) {
             m ^= (bitoftype_(s_short)|bitoftype_(s_long)|bitoftype_(s_longlong));
-            if (feature & FEATURE_FUSSY)
+            if (HasFeature(Feature_Fussy))
             /* in which case, the printname of s_longlong is __int64, */
             /* rather than  long long                                 */
                 m ^= bitoftype_(s_int);

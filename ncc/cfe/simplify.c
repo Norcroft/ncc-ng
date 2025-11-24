@@ -1034,7 +1034,7 @@ static Expr *optimise1(Expr *e, bool valneeded, bool *pure)
 /* Specifically avoid the temp introduction (case s_fnap above) for     */
 /* struct-returning functions whose result is directly                  */
 /* assigned to a binder or via s_content...                             */
-                {   if (h0_(e1) != s_binder && (feature & FEATURE_FUSSY)
+                {   if (h0_(e1) != s_binder && HasFeature(Feature_Fussy)
                         && !returnsstructinregs(arg1_(a2)))
                     {   /* ...except in strict ANSI mode, if it is      */
                         /* possible that the assignment target may      */
@@ -1902,7 +1902,7 @@ case s_typespec:
             goto mcrepofint;
     case bitoftype_(s_char):
             if ((m & (bitoftype_(s_signed)|bitoftype_(s_unsigned))) == 0)
-                m |= (feature & FEATURE_SIGNED_CHAR) ?
+                m |= HasFeature(Feature_SignedChar) ?
                          bitoftype_(s_signed) : bitoftype_(s_unsigned);
             /* drop through */
     case bitoftype_(s_int):

@@ -1300,7 +1300,7 @@ void check_access(ClassMember *m, TagBinder *privately_deriving_class)
 /* Access is OK if the accessing class is derived_fromeq this class and */
 /* the privately deriving class is derived_fromeq the accessing class.  */
             if (derived_fromeq(tb, accessing_class) &&
-                ((feature & FEATURE_CFRONT) ||
+                (HasFeature(Feature_CFront) ||
                  (!accessing_fn || rootOfPath == NULL ||
                   rootOfPath->bindlistcdr->bindlistcar == NULL ||
                   /* only interested in the leftScope, if there is one */

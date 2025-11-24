@@ -596,7 +596,7 @@ case s_identifier:  break;
             /* prevent reentry without an intervening call to nextsym() */
     if (is_dname) rootOfPath = NULL;
     if (curlex_path == 0 &&
-        (feature & FEATURE_CFRONT) &&
+        HasFeature(Feature_CFront) &&
             /* This is illegal by the standard... last desperate effort */
             /* to make sense of X::[~]X() where typedef T X...          */
         (curlex_scope != 0 || leftScope != 0))
@@ -1094,7 +1094,7 @@ static Expr *unbind_dtor(SynScope *to, SynScope *from)
 /* calculations for branches into blocks!                               */
                 ector = (Expr *)b;
 /* next line is error to agree with Cfront 3.1                          */
-                if ((feature & FEATURE_CFRONT) &&
+                if (HasFeature(Feature_CFront) &&
                     !typehasctor(bindtype_(b)) &&
                     h0_(princtype(bindtype_(b))) != t_ref)
                     cc_warn(syn_rerr_jump_past_init, b);
@@ -1593,7 +1593,7 @@ static Expr *rd_delete(AEop op)
     {   isarray = YES;
         nextsym();
         if (curlex.sym != s_rbracket)
-        {   if (feature & FEATURE_CFRONT)
+        {   if (HasFeature(Feature_CFront))
                 cc_warn(syn_rerr_delete_expr_anachronism);
             else
                 cc_rerr(syn_rerr_delete_expr_anachronism);
@@ -3104,7 +3104,7 @@ static void cpp_end_strdecl(TagBinder *cl)
 /* argument an object of a class which is a base class of the class     */
 /* which the operator belongs.  The A.R.M. is even more generous and    */
 /* allows any conversion.  This is also done below for operator=.       */
-                if (equiv || ((feature & FEATURE_CFRONT) && derived))
+                if (equiv || (HasFeature(Feature_CFront) && derived))
                 {   if (h0_(t3) != t_ref) syserr("self-copying $c constructor", cl);
                     has_user_copy_ctor = YES;
                     if (equiv)
@@ -3119,7 +3119,7 @@ static void cpp_end_strdecl(TagBinder *cl)
             }
         }
         if (semantics_differ && armb)
-            cc_warn((feature & FEATURE_CFRONT) ?
+            cc_warn(HasFeature(Feature_CFront) ?
                        xsyn_warn_ARM_cctor_suppress : xsyn_warn_ISO_cctor_no_suppress,
                     armb);
         if (has_user_copy_ctor)
@@ -3172,7 +3172,7 @@ static void cpp_end_strdecl(TagBinder *cl)
                 TypeExpr *t4 = h0_(t3) == t_ref ? typearg_(t3) : t3;
                 const bool equiv = qualfree_equivtype(t4, tagbindtype_(cl));
                 const bool derived = type_derived_from(t4, tagbindtype_(cl)) != NULL;
-                if (equiv || ((feature & FEATURE_CFRONT) && derived))
+                if (equiv || (HasFeature(Feature_CFront) && derived))
                 {   has_user_op_assign = YES;
                     if (equiv)
                         semantics_differ = NO;
@@ -3191,7 +3191,7 @@ static void cpp_end_strdecl(TagBinder *cl)
             }
         }
         if (semantics_differ && armb)
-            cc_warn((feature & FEATURE_CFRONT) ?
+            cc_warn(HasFeature(Feature_CFront) ?
                        xsyn_warn_ARM_opeq_suppress : xsyn_warn_ISO_opeq_no_suppress,
                     armb);
         if (has_user_op_assign)

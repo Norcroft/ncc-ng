@@ -279,16 +279,30 @@ static int32 const warning_flags[] = {
 /*yz  */ 0,             D_STRUCTASSIGN
 };
 
-static int32 const feature_flags[] = {
-/*abc*/  FEATURE_ANOMALY,                FEATURE_VERBOSE,                FEATURE_LIMITED_PCC,
-/*def*/  0, /* -fd */                    FEATURE_6CHARMONOCASE,          0L-FEATURE_SAVENAME,
-/*ghi*/  0, /* UNUSED */                 FEATURE_PREDECLARE,             FEATURE_USERINCLUDE_LISTING,
-/*jkl*/  FEATURE_SYSINCLUDE_LISTING,     FEATURE_KANDR_INCLUDE,          FEATURE_DONTUSE_LINKREG,
-/*mno*/  FEATURE_PPNOUSE,                FEATURE_SAVENAME,               FEATURE_WARNOLDFNS,
-/*pqr*/  FEATURE_TELL_PTRINT,            FEATURE_ALLOWCOUNTEDSTRINGS,    FEATURE_LET_LONGJMP_CORRUPT_REGVARS,
-/*stu*/  FEATURE_ANNOTATE,               FEATURE_REVERSE_BITFIELDS,      FEATURE_UNEXPANDED_LISTING,
-/*vwx*/  FEATURE_NOUSE,                  FEATURE_WR_STR_LITS,            0, /* -fx */
-/*yz */  FEATURE_ENUMS_ALWAYS_INT,       FEATURE_INLINE_CALL_KILLS_LINKREG
+// Note that Feature_Max is used to flag unused or used by a different
+// config option (eg. -fd and -fx set ccom_flags and suppress).
+static enum Features const feature_flags[] = {
+/*abc*/  Feature_Anomoly,           Feature_Verbose,                Feature_LimitedPCC,
+/*def*/  Feature_MAX, /* -fd */     Feature_6CharMonocase,          Feature_SaveName,
+/*ghi*/  Feature_MAX, /* UNUSED */  Feature_Predeclare,             Feature_UserIncludeListing,
+/*jkl*/  Feature_SysIncludeListing, Feature_KandRInclude,           Feature_DontUseLinkReg,
+/*mno*/  Feature_PPNoUse,           Feature_SaveName,               Feature_WarnOldFns,
+/*pqr*/  Feature_TellPtrInt,        Feature_AllowCountedStrings,    Feature_LetLongjmpCorruptRegVars,
+/*stu*/  Feature_Annotate,          Feature_ReverseBitfields,       Feature_UnexpandedListing,
+/*vwx*/  Feature_NoUse,             Feature_WRStrLits,              Feature_MAX, /* -fx */
+/*yz */  Feature_EnumsAlwaysInt,    Feature_InlineCallKillsLinkReg
+};
+
+static bool const feature_flags_inverted[] = {
+/*abc*/  false /*Feature_Anomoly*/,             false /*Feature_Verbose*/,                false /*Feature_LimitedPCC*/,
+/*def*/  false /* -fd */,                       false /*Feature_6CharMonocase*/,          true  /*Feature_SaveName*/,
+/*ghi*/  false /* UNUSED */,                    false /*Feature_Predeclare*/,             false /*Feature_UserIncludeListing*/,
+/*jkl*/  false /*Feature_SysIncludeListing*/,   false /*Feature_KandRInclude*/,           false /*Feature_DontUseLinkReg*/,
+/*mno*/  false /*Feature_PPNoUse*/,             false /*Feature_SaveName*/,               false /*Feature_WarnOldFns*/,
+/*pqr*/  false /*Feature_TellPtrInt*/,          false /*Feature_AllowCountedStrings*/,    false /*Feature_LetLongjmpCorruptRegVars*/,
+/*stu*/  false /*Feature_Annotate*/,            false /*Feature_ReverseBitfields*/,       false /*Feature_UnexpandedListing*/,
+/*vwx*/  false /*Feature_NoUse*/,               false /*Feature_WRStrLits*/,              false /* -fx */,
+/*yz */  false /*Feature_EnumsAlwaysInt*/,      false /*Feature_InlineCallKillsLinkReg*/
 };
 
 static int32 ClearOrSet(int32 val, int32 bits, bool clear) {
@@ -319,13 +333,12 @@ static int SetFeatures(void *arg, char const *name, char const *val) {
     }
 #ifdef DISABLE_ERRORS
     else if (name[1] == 'E') {
-      int32 new_suppress = 0,
-            new_feature = 0;
+      int32 new_suppress = 0;
       switch (ch) {
       case 'c': new_suppress = D_IMPLICITCAST;   break;
       case 'm': new_suppress = D_MPWCOMPATIBLE | D_PPALLOWJUNK | D_ZEROARRAY
                                | D_PPNOSYSINCLUDECHECK | D_MULTICHAR;
-                new_feature = FEATURE_ALLOWCOUNTEDSTRINGS;
+                Features_ClearOrSet(Feature_AllowCountedStrings, on);
                                                  break;
       case 'p': new_suppress = D_PPALLOWJUNK;    break;
 #ifdef EXTENSION_VALOF
@@ -338,7 +351,6 @@ static int SetFeatures(void *arg, char const *name, char const *val) {
       case 'i': new_suppress = D_IMPLICITINT;         break;
       }
       suppress = ClearOrSet(suppress, new_suppress, on);
-      feature  = ClearOrSet(feature, new_feature, on);
     }
 #endif
     else if (name[1] == 'f') {
@@ -347,11 +359,13 @@ static int SetFeatures(void *arg, char const *name, char const *val) {
       else if (ch == 'd') {
         ccom_flags = ccom_flags | FLG_USE_SYSTEM_PATH;
       } else {
-        int32 flag = feature_flags[ASCII(ch) - ASCII('a')];
-        if (flag < 0)
-          feature = ClearOrSet(feature, -flag, !on);
-        else
-          feature = ClearOrSet(feature, flag, on);
+        enum Features flag = feature_flags[ASCII(ch) - ASCII('a')];
+        if (flag != Feature_MAX) {
+          if (feature_flags_inverted[ASCII(ch) - ASCII('a')])
+            Features_ClearOrSet(flag, !on);
+          else
+            Features_ClearOrSet(flag, on);
+        }
       }
     }
 #ifdef PASCAL
@@ -403,11 +417,6 @@ static int DoPredefine(void *arg, char const *name, char const *val) {
 /*
  * Enable the features for PCC style compilation.
  */
-
-static int32 pcc_features(void)
-{
-  return FEATURE_PCC | FEATURE_UNIX_STYLE_LONGJMP;
-}
 
 static void translate_fname(const char *file, UnparsedName *un, char *new_file)
 {   fname_parse(file, FNAME_INCLUDE_SUFFIXES, un);
@@ -499,7 +508,7 @@ static char *push_include(char const *path, const char *name)
     UnparsedName unparse;
     char new_path[MAX_NAME];
 
-    if (feature & FEATURE_KANDR_INCLUDE) return hostname;
+    if (HasFeature(Feature_KandRInclude)) return hostname;
 
     /* remove the head of the path and push it on the save stack */
     p = path_hd;
@@ -527,7 +536,7 @@ static void pop_include(void)
 {
 #ifdef BSD_LIKE_SEARCH
     PathElement *p;
-    if (feature & FEATURE_KANDR_INCLUDE) return;
+    if (HasFeature(Feature_KandRInclude)) return;
     /*
      * pop the saved path element off the save stack and
      * push it on to the front of the regular path element stack.
@@ -621,6 +630,14 @@ static void set_debug_options(ToolEnv *t)
 
 static int makeflag;
 
+
+static void pcc_features(void)
+{
+    SetFeature(Feature_PCC);
+    SetFeature(Feature_UnixStyleLongjmp);
+}
+
+
 static void set_compile_options(ToolEnv *t)
 {
   char const *val;
@@ -628,25 +645,43 @@ static void set_compile_options(ToolEnv *t)
 
   val = toolenv_lookup(t, ".lang");
 #ifdef PASCAL
-  if (StrEq(val, "=-iso")) feature |= FEATURE_ISO;
+  if (StrEq(val, "=-iso")) SetFeature(Feature_ISO);
 #else
-  if (StrEq(val, "=-pcc"))
-    feature = (feature | pcc_features()) & ~(FEATURE_ANSI|FEATURE_CPP|FEATURE_CFRONT);
-  else if (StrEq(val, "=-pcc -strict"))
-    feature = (feature | pcc_features() | FEATURE_FUSSY) & ~(FEATURE_ANSI|FEATURE_CPP|FEATURE_CFRONT);
-  else if (StrEq(val, "=-ansi -strict"))
-    feature = (feature | FEATURE_ANSI | FEATURE_FUSSY) & ~(FEATURE_LIMITED_PCC|FEATURE_CPP|FEATURE_CFRONT);
-  else if (StrEq(val, "=-ansi"))
-    feature = (feature | FEATURE_ANSI) & ~(FEATURE_PCC|FEATURE_CPP|FEATURE_CFRONT);
-  else if (StrEq(val, "=-ansi -fc"))
-    feature = (feature | FEATURE_ANSI | FEATURE_LIMITED_PCC) & ~(FEATURE_PCC|FEATURE_CPP|FEATURE_CFRONT);
+  if (StrEq(val, "=-pcc")) {
+    SetFeatures2(Feature_PCC, Feature_UnixStyleLongjmp);
+    ClearFeature(Feature_ANSI);
+    ClearFeature(Feature_CPP);
+    ClearFeature(Feature_CFront);
+  }
+  else if (StrEq(val, "=-pcc -strict")) {
+    SetFeatures3(Feature_PCC, Feature_UnixStyleLongjmp, Feature_Fussy);
+    ClearFeatures3(Feature_ANSI, Feature_CPP, Feature_CFront);
+  }
+  else if (StrEq(val, "=-ansi -strict")) {
+    SetFeatures2(Feature_ANSI, Feature_Fussy);
+    ClearFeatures3(Feature_LimitedPCC, Feature_CPP, Feature_CFront);
+  }
+  else if (StrEq(val, "=-ansi")) {
+    SetFeature(Feature_ANSI);
+    ClearFeatures3(Feature_PCC, Feature_CPP, Feature_CFront);
+  }
+  else if (StrEq(val, "=-ansi -fc")) {
+    SetFeatures2(Feature_ANSI, Feature_LimitedPCC);
+    ClearFeatures3(Feature_PCC, Feature_CPP, Feature_CFront);
+  }
 #  ifdef CPLUSPLUS
-  else if (StrEq(val, "=-cfront"))
-    feature = (feature | FEATURE_CPP | FEATURE_CFRONT) & ~(FEATURE_PCC|FEATURE_ANSI);
-  else if (StrEq(val, "=-cpp"))
-    feature = (feature | FEATURE_CPP) & ~(FEATURE_PCC|FEATURE_ANSI);
-  else if (StrEq(val, "=-cpp -strict"))
-    feature = (feature | FEATURE_CPP | FEATURE_FUSSY) & ~(FEATURE_PCC|FEATURE_ANSI);
+  else if (StrEq(val, "=-cfront")) {
+    SetFeatures2(Feature_CPP, Feature_CFront);
+    ClearFeatures2(Feature_PCC, Feature_ANSI);
+  }
+  else if (StrEq(val, "=-cpp")) {
+    SetFeature(Feature_CPP);
+    ClearFeatures2(Feature_PCC, Feature_ANSI);
+  }
+  else if (StrEq(val, "=-cpp -strict")) {
+    SetFeatures2(Feature_CPP, Feature_Fussy);
+    ClearFeatures2(Feature_PCC, Feature_ANSI);
+  }
 #  endif
 #endif
 
@@ -662,9 +697,9 @@ static void set_compile_options(ToolEnv *t)
   if ((val = toolenv_lookup(t, "-ZS")) != NULL) system_flavour = &val[1];
   if ((val = toolenv_lookup(t, "-zj")) != NULL) config |= CONFIG_INDIRECT_SETJMP;
   if ((val = toolenv_lookup(t, ".schar")) != NULL)
-    feature = ClearOrSet(feature, FEATURE_SIGNED_CHAR, val[3] == '+');
+    Features_ClearOrSet(Feature_SignedChar, val[3] == '+');
   if ((val = toolenv_lookup(t, ".areaperfn")) != NULL)
-    feature = ClearOrSet(feature, FEATURE_AOF_AREA_PER_FN, val[3] == '+');
+    Features_ClearOrSet(Feature_AOFAreaPerFn, val[3] == '+');
 #ifndef NO_DUMP_STATE
   if ((val = toolenv_lookup(t, "-zgw")) != NULL) { compiledheader = &val[1]; dump_state |= DS_Dump; }
   if ((val = toolenv_lookup(t, "-zgr")) != NULL) { compiledheader = &val[1]; dump_state |= DS_Load; }
@@ -672,13 +707,13 @@ static void set_compile_options(ToolEnv *t)
   if ((val = toolenv_lookup(t, ".pp_only")) != NULL)
     ccom_flags = (ccom_flags | FLG_PREPROCESS) & ~FLG_COMPILE;
   if ((val = toolenv_lookup(t, "-K")) != NULL) ccom_flags |= FLG_COUNTS;
-  if ((val = toolenv_lookup(t, "-C")) != NULL) feature |= FEATURE_PPCOMMENT;
+  if ((val = toolenv_lookup(t, "-C")) != NULL) SetFeature(Feature_PPComment);
   if ((val = toolenv_lookup(t, "-p")) != NULL)
     var_profile_option = val[0] == '=' ? 2 : 1;
   if ((val = toolenv_lookup(t, ".no_object")) != NULL) ccom_flags |= FLG_NO_OBJECT_OUTPUT;
   if ((val = toolenv_lookup(t, ".nowarn")) != NULL
       && val[0] != '?')
-    feature |= FEATURE_NOWARNINGS;
+    SetFeature(Feature_NoWarnings);
 
   val = toolenv_lookup(t, "-O");
   if (StrEq(val, "=time"))
@@ -776,8 +811,8 @@ static void compile_statements(void)
         decls = YES;
     }
 #ifndef PASCAL /*ECN*/
-    if (!decls && (feature & FEATURE_ANSI))   /* move to rd_topdecl()? */
-    { if (feature & FEATURE_FUSSY)
+    if (!decls && HasFeature(Feature_ANSI))   /* move to rd_topdecl()? */
+    { if (HasFeature(Feature_Fussy))
         cc_rerr(compiler_rerr_no_extern_decl);
       else
         cc_warn(compiler_rerr_no_extern_decl);
@@ -848,7 +883,7 @@ static void show_h_line(int32 line, const char *file, bool to_makefile)
 {
   if (ccom_flags & FLG_PREPROCESS)
       printf("#%s %lu \"%s\"\n",
-             (feature & FEATURE_PCC ? "" : "line"), (long)line, file);
+             HasFeature(Feature_PCC) ? "" : "line", (long)line, file);
   if (to_makefile && ccom_flags & FLG_MAKEFILE)
   {
       if (makestream == stdout)
@@ -1114,7 +1149,7 @@ extern int ccom(ToolEnv *t, char const *infile, char const *outfile,
   rtcheck  = 0;
 #endif
 
-  feature  = 0;
+  Features_ClearAll();
   suppress = 0;
 
 #ifndef NO_CONFIG
@@ -1233,7 +1268,7 @@ extern int ccom(ToolEnv *t, char const *infile, char const *outfile,
 #ifndef NO_ASSEMBLER_OUTPUT
       asmstream = stdout;
 #endif
-      feature |= FEATURE_ANNOTATE;   /* simple test use */
+      SetFeature(Feature_Annotate);  /* simple test use */
     }
 
 #ifndef NO_LISTING_OUTPUT

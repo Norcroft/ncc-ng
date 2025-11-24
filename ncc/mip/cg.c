@@ -6215,9 +6215,10 @@ void cg_topdecl2(BindList *local_binders, BindList *regvar_binders)
     drop_local_store();
     lose_dead_code();     /* before regalloc   */
     if ((procflags & BLKSETJMP) &&
-        (feature & FEATURE_UNIX_STYLE_LONGJMP)) {
+        HasFeature(Feature_UnixStyleLongjmp))
+    {
         forcetostore(local_binders);
-        if (!(feature & FEATURE_LET_LONGJMP_CORRUPT_REGVARS))
+        if (!HasFeature(Feature_LetLongjmpCorruptRegVars))
             forcetostore(regvar_binders);
     }
     allocate_registers(
@@ -6252,7 +6253,7 @@ void cg_topdecl2(BindList *local_binders, BindList *regvar_binders)
 /* This is the place where I put tables into the output stream for use   */
 /* by debugging tools - here are the names of functions.                 */
 #ifndef TARGET_IS_ARM
-    cg_fnname_offset_in_codeseg = (feature & FEATURE_SAVENAME) ?
+    cg_fnname_offset_in_codeseg = HasFeature(Feature_SaveName) ?
                         codeseg_function_name(currentfunction.symstr, currentfunction.argwords) : -1;
     show_entry(currentfunction.symstr, currentfunction.xrflags);
 #else

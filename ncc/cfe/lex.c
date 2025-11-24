@@ -220,7 +220,7 @@ static AEop make_integer(int32 radix, int32 flag)
      *             (ul) unsigned long.
      */
     overflow = I64_UToI(&value, &val64) != i64_ok;
-    if (feature & FEATURE_FUSSY) {
+    if (HasFeature(Feature_Fussy)) {
         if (!overflow_warned && overflow) {
             cc_err(lex_err_ioverflow, namebuf);
             overflow_warned = YES;
@@ -408,7 +408,7 @@ static AEop read_number(int radix)
     for (;;)
     {
         if (curchar == 'l' || curchar == 'L') {
-            if (!(feature & FEATURE_FUSSY) && (flag & NUM_LONG)) {
+            if (!HasFeature(Feature_Fussy) && (flag & NUM_LONG)) {
                 flag ^= NUM_LONG|NUM_LONGLONG; nextchar(); continue;
             } else if (!(flag & (NUM_LONGLONG|NUM_LONG))) {
                 flag |= NUM_LONG; nextchar(); continue;
@@ -523,7 +523,7 @@ case '6':       case '7':
    Moreover we have to take care that (e.g.) \\<nl><nl> gives an error.
 */
 case ' ':  /* In pcc mode, allow '\ ' to appease XOpen test suite */
-           if (feature & FEATURE_PCC) break;
+           if (HasFeature(Feature_PCC)) break;
 case '\t':
            cc_err(lex_err_backslash_blank);
 
@@ -537,7 +537,7 @@ case '\n': /* drop through.  note no nextchar() here so read_string()
               will give an error message. */
            return 0;
 
-default:  /* pp.c removes control chars if !FEATURE_PCC */
+default:  /* pp.c removes control chars if !Feature_PCC */
           cc_ansi_rerr(lex_rerr_illegal_esc, (int)ch, (int)ch);
           break;      /* i.e. treat unknown escape "\Q" as "Q"            */
     }
@@ -581,7 +581,7 @@ static void read_string(int quote, AEop type, bool lengthwanted)
         if (escaped) nextchar();
 #ifdef EXTENSION_COUNTED_STRINGS
         if (val == symstrp && escaped && curchar == 'p' &&
-            (feature & FEATURE_ALLOWCOUNTEDSTRINGS))
+            HasFeature(Feature_AllowCountedStrings))
         { /* "\p" at start of string */
             isCountedString = YES;
 #ifdef EXTENSION_UNSIGNED_STRINGS
@@ -633,8 +633,8 @@ static void read_string(int quote, AEop type, bool lengthwanted)
             }
         }
         else if (n == 1)
-            k = (feature & FEATURE_SIGNED_CHAR) ? *(int8 *)val
-                                                : *(unsigned8 *)val;
+            k = HasFeature(Feature_SignedChar) ? *(int8 *)val
+                                               : *(unsigned8 *)val;
         else
         {   /* The effect of n>1 is implementation-defined */
             int32 i;
@@ -648,7 +648,7 @@ static void read_string(int quote, AEop type, bool lengthwanted)
             /* but assembles bytes 'backwards' on 68000-sex machines.   */
             /*   (It agrees with previous code on intel-sex hosts.)     */
             /* It is arguable that we should sign-extend the last char  */
-            /* (only!) if FEATURE_SIGNED_CHAR (merges in n==1 case).    */
+            /* (only!) if Feature_SignedChar (merges in n==1 case).    */
             for (i=0; i<n; i++)
                 k = (unsigned32)k << 8 | ((unsigned8 *)val)[i];
             if (sizeof_int == 2) k = (int16)k;  /* normalise, eg for cmp.   */
@@ -708,7 +708,7 @@ static AEop next_basic_sym(void)
     {
 default:    if (curchar == '#' || curchar == '\\')
                 cc_err(lex_err_bad_hash, (int)curchar);
-            else if (isprint(curchar))  /* can only happen if FEATURE_PCC */
+            else if (isprint(curchar))  /* can only happen if Feature_PCC */
                  cc_err(lex_err_bad_char, (long)curchar, (int)curchar);
             else cc_err(lex_err_bad_noprint_char, (int)curchar);
             nextchar();
@@ -950,7 +950,7 @@ case l_hash:    if (asm_mode == ASM_STRING || asm_mode == ASM_BLOCK)
                 break;
 #endif  /* TARGET_HAS_INLINE_ASSEMBLER */
     }
-    if (can_have_becomes(curlex.sym) && (feature & FEATURE_PCC))
+    if (can_have_becomes(curlex.sym) && HasFeature(Feature_PCC))
     {   /* recognise whitespace (but NOT newlines) in += etc */
         /* as a sop to olde-style (K&R) C.                   */
         /* BEWARE & = and * = in C++ default argument lists. */
@@ -1256,7 +1256,7 @@ void lex_init()         /* C version  */
      *   This is because SUN NeWS allows the use of '$'
      *   in variable names (yuk !)
      */
-    if (feature & (FEATURE_PCC|FEATURE_LIMITED_PCC))
+    if (HasFeature(Feature_PCC) || HasFeature(Feature_LimitedPCC))
         setuplexclass1("$", l_idstart);
 
     {   unsigned int u;
@@ -1265,8 +1265,7 @@ void lex_init()         /* C version  */
             sym_insert(name, sym);
             sym_name_table[sym] = name;
         }
-        if ((feature & (FEATURE_PCC|FEATURE_FUSSY)) !=
-                       (FEATURE_PCC|FEATURE_FUSSY))
+        if (!(HasFeature(Feature_PCC) && HasFeature(Feature_Fussy)))
         {   for (u = 0; u < sizeof(ns2)/sizeof(ns2[0]); ++u)
             {   const char *name = ns2[u].name; int32 sym = ns2[u].sym;
                 sym_insert(name, sym);
@@ -1282,7 +1281,7 @@ void lex_init()         /* C version  */
                 }
             }
         }
-        if (!(feature & FEATURE_FUSSY))
+        if (!HasFeature(Feature_Fussy))
             sym_name_table[s_longlong] = "long long";
     }
     {   unsigned int u;

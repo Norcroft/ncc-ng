@@ -619,7 +619,7 @@ void emitic(const Icode *const ic)
         if ((ic->op == J_CALLR && (config & CONFIG_INDIRECT_SETJMP)) ||
             (ic->op == J_CALLK && bindsym_(ic->r3.b) == setjmpsym))
         {   blkflags_(block_header) |= BLKSETJMP;
-            if (feature & FEATURE_UNIX_STYLE_LONGJMP)
+            if (HasFeature(Feature_UnixStyleLongjmp))
             /* We need this information early (to be able to turn off CSE),
              * but can't do branch_chain (where it is otherwise set) before
              * loop_optimise, because that turns some empty blocks into
@@ -830,7 +830,7 @@ case J_ADCONV:
 /* Here (in the case that string literals are to be writable, we remove  */
 /* J_STRING opcodes in favour of J_ADCON.                                */
 case J_STRING:
-        if (feature & FEATURE_WR_STR_LITS)
+        if (HasFeature(Feature_WRStrLits))
           /*
            * Pcc-mode - string lits writable in the data segment.
            */
@@ -2011,7 +2011,7 @@ case J_CMPK:                       /* I.e. the pseudo_uses_r1() ops      */
         }
         break;
 case J_STRING:
-        if (feature & FEATURE_WR_STR_LITS)
+        if (HasFeature(Feature_WRStrLits))
             procflags |= PROC_USESADCONS;
         break;
 case J_CASEBRANCH:

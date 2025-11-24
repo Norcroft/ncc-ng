@@ -132,7 +132,7 @@ static Binder *ovld_resolve_addr_2(AEop op, TypeExpr *desttype, BindList *bl,
             return bspecific;
         }
     }
-    if (!(feature & FEATURE_CFRONT) || origbl->bindlistcdr != NULL)
+    if (!HasFeature(Feature_CFront) || origbl->bindlistcdr != NULL)
         cc_rerr(sem_rerr_noncallsite_ovld, bspecific, generic);
     return bspecific;
 }
@@ -912,7 +912,7 @@ static Expr *cpp_ptrcast(AEop op, Expr *e, TypeExpr *te, TypeExpr *tr,
             }
         }
     }
-    else if ((feature & FEATURE_CFRONT) &&
+    else if (HasFeature(Feature_CFront) &&
               op != s_cast &&
               h0t == t_content &&
               !qualfree_equivtype(te, tr) &&
@@ -1148,7 +1148,7 @@ static Expr *cpp_mkcast(AEop op, Expr **ep, TypeExpr *tr)
         if (specific == NULL)
             return errornode;
         if ((bindstg_(specific) & b_memfna) && h0_(e) != s_addrof)
-        {   if (feature & FEATURE_CFRONT)
+        {   if (HasFeature(Feature_CFront))
                 cc_warn(simplify_err_illegal_use_of_mem_fn, generic);
             else
                 cc_rerr(simplify_err_illegal_use_of_mem_fn, generic);

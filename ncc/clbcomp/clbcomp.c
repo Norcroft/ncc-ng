@@ -75,7 +75,7 @@ void clb_init(void)
     if (signal(SIGTERM, SIG_IGN) != SIG_IGN)
       (void) signal(SIGINT, compile_abort);
 #endif
-    feature |= (FEATURE_CPP|FEATURE_CFRONT);
+    SetFeatures2(Feature_CPP, Feature_CFront);
     expr_string = NULL;
     errstate_initialise();
     errstate_perfileinit();

@@ -1739,7 +1739,7 @@ case J_INFOBODY:
         break;
 case J_STRING:
         ldm_flush();
-/* flowgraf.c has replaced J_STRING by J_ADCON if FEATURE_WR_STR_LITS.    */
+/* flowgraf.c has replaced J_STRING by J_ADCON if Feature_WRStrLits.    */
           /*
            * Standard ANSI mode - string lits read-only in the code seg.
            * Ensure that the literal will be dumped in time for it to be
@@ -4636,7 +4636,7 @@ static void routine_entry(int32 m)
             if (!(procflags & BLK0EXIT))
                 flags |= aof_leaf;
 #endif
-        } else if (feature & FEATURE_SAVENAME)
+        } else if (HasFeature(Feature_SaveName))
 /* Dump a function name only if the function will have a stack frame... */
 /* Without a frame the name isn't locatable (RISC OS and RISCiX kernel) */
             codeseg_function_name(name, /* nargwords, unused on ARM */ m);
@@ -4687,7 +4687,7 @@ static void routine_saveregs(int32 m)
          (procauxflags & bitoffnaux_(s_irq)))
     {
         int32 mask;
-        if (feature & FEATURE_DONTUSE_LINKREG)
+        if (HasFeature(Feature_DontUseLinkReg))
             regmask |= M_LR;
         if ((regmask & M_VARREGS) != 0 && (config & CONFIG_OPTIMISE_SPACE))
             regmask |= M_LR;
@@ -4727,7 +4727,7 @@ static void routine_saveregs(int32 m)
     }
     else
     {
-        bool saveargs = ((feature & FEATURE_SAVENAME) || (procflags & PROC_ARGPUSH));
+        bool saveargs = HasFeature(Feature_SaveName) || (procflags & PROC_ARGPUSH);
         bool maybevariadic = fltregs == 0 && intregs < nargwords && saveargs;
         int32 mask;
         savewordsabovefp = 1;
@@ -4879,7 +4879,7 @@ static void routine_exit(int32 condition, bool to_pc, int32 adjustsp)
     }
     if (!saveregs_done)
         mask = 0;
-    else if (feature & FEATURE_DONTUSE_LINKREG)
+    else if (HasFeature(Feature_DontUseLinkReg))
         mask |= M_LR;
 #ifndef PROFILE_COUNTS_INLINE
     if (profile_option)
@@ -5382,7 +5382,7 @@ void mcdep_init(void)
     fpliterals[14].val = real_of_string("0.5", TYPESPEC_FLOAT);
     fpliterals[15].val = real_of_string("10.0", TYPESPEC_FLOAT);
 
-    if (feature & FEATURE_DONTUSE_LINKREG) avoidallocating(R_LR);
+    if (HasFeature(Feature_DontUseLinkReg)) avoidallocating(R_LR);
 #ifdef TARGET_IS_UNIX
     avoidallocating(R_SL);
 #else

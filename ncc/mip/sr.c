@@ -951,7 +951,7 @@ static void ReplaceBinder(SR_Def *def, Binder *newb, Binder *oldb) {
   case J_INIT: case J_INITF: case J_INITD:
     ip->r3.b = newb;
     ip->r1.r = bindxx_(newb);
-    if (p != NULL && (feature & FEATURE_ANOMALY))
+    if (p != NULL && HasFeature(Feature_Anomoly))
       cc_warn(regalloc_warn_use_before_set, oldb);
     break;
   case J_LDRV1: case J_LDRLV1:

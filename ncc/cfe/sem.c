@@ -29,7 +29,7 @@
 /* Hence the use of cc_ansi_warn not cc_ansi_rerr which sadly deletes   */
 /* the object file.                                                     */
 
-/* Nov 88: Rework FEATURE_SIGNED_CHAR so it is ansi-conformant too.     */
+/* Nov 88: Rework Feature_SignedChar so it is ansi-conformant too.      */
 /* Nov 88: Rework optional double alignment, see TARGET_ALIGNS_DOUBLES. */
 
 #ifndef _SEM_H
@@ -90,7 +90,7 @@
 /* The following macro is used to default the signedness for 'plain'   */
 /* char and 'plain' int bit fields.                                    */
 #define issignedchar_(m) ((m) & bitoftype_(s_signed) || \
-          (feature & FEATURE_SIGNED_CHAR && !((m) & bitoftype_(s_unsigned))))
+          (HasFeature(Feature_SignedChar) && !((m) & bitoftype_(s_unsigned))))
 
 Expr *errornode;
 
@@ -294,7 +294,7 @@ TypeExpr *unbitfield_type(TypeExpr *t)
 static TypeExpr *bf_promotedtype2(
     SET_BITMAP m, int32 sparebits, TypeExpr *signedtype, TypeExpr *unsignedtype) {
     if (issignedchar_(m)
-        || (sparebits != 0 && !(feature & FEATURE_PCC)))
+        || (sparebits != 0 && !HasFeature(Feature_PCC)))
         return signedtype;
     else
         return unsignedtype;
@@ -625,7 +625,7 @@ bool structfield(ClassMember *l, int32 sort, StructPos *p)
             end = n + (bitoff/8) + sizeofcontainer;
             /* If we're packing from the opposite end of the container,    */
             /* containers can't be allowed to overlap                      */
-            if (feature & FEATURE_REVERSE_BITFIELDS)
+            if (HasFeature(Feature_ReverseBitfields))
                 end = p->endofcontainer;
             if (end > p->endofcontainer) p->endofcontainer = end;
         } else {
@@ -637,7 +637,7 @@ bool structfield(ClassMember *l, int32 sort, StructPos *p)
                 p->endofcontainer = n + sizeofcontainer;
             }
         }
-        if (feature & FEATURE_REVERSE_BITFIELDS) {
+        if (HasFeature(Feature_ReverseBitfields)) {
           /* Pack from the opposite end of the container */
             int32 endcontaineroffset = (p->endofcontainer & (alignof_int-1)) * 8;
             int32 containerbits = sizeofcontainer * 8;
@@ -653,7 +653,7 @@ bool structfield(ClassMember *l, int32 sort, StructPos *p)
     {   if (bitoff != 0) {
             /* The unused part of a trailing bitfield container is allowed */
             /* to overlap non-bitfield fields                              */
-            if (feature & FEATURE_REVERSE_BITFIELDS)
+            if (HasFeature(Feature_ReverseBitfields))
                 n = p->endofcontainer;
             else
                 n += (bitoff+7) / 8;
@@ -959,7 +959,7 @@ static int equivtype_4(TypeExpr *t1, TypeExpr *t2,
                     if (old2 || widenformals)
 #if 0
                     {   TypeExpr *promoted = promoted_formaltype(ft2);
-                        if (old2 && !old1 && (feature & FEATURE_PCC) &&
+                        if (old2 && !old1 && HasFeature(FeaturePCC) &&
                             !qualfree_equivtype(ft1, promoted))
                             cc_pccwarn("type $t doesn't match promoted type", ft1);
                         else
@@ -1001,7 +1001,7 @@ int equivtype(TypeExpr *t1, TypeExpr *t2)
 /* @@@ I wish the use of this was documented!                           */
 int widened_equivtype(TypeExpr *t1, TypeExpr *t2)
 {
-   return equivtype_4(t1, t2, 0, 0, !(feature & FEATURE_FUSSY) &&
+   return equivtype_4(t1, t2, 0, 0, !HasFeature(Feature_Fussy) &&
                                     !(config & CONFIG_UNWIDENED_NARROW_ARGS));
 }
 
@@ -1272,7 +1272,7 @@ TypeExpr *promoted_formaltype(TypeExpr *t)
     {   SET_BITMAP m1 = typespecmap_(t1);
         if (is_float_(m1))
             return te_double;
-/* Should FEATURE_PCC do anything here re unsigned preserving?          */
+/* Should Feature_PCC do anything here re unsigned preserving?          */
         if (m1 & bitoftype_(s_char))
             /* turn 'char' to 'int'. */
             return te_int;
@@ -1314,7 +1314,7 @@ case s_typespec:
 /* easy (and so that we can warn as ANSI suggest, but we need to allow  */
 /* printf("%d", enumconst) in C (although not C++? -- unclear).         */
 /* See also the uses of COERCE_ARG in mkfnap()/coerceunary.             */
-                || ( !(feature & FEATURE_CPP) ?
+                || ( !HasFeature(Feature_PCC) ?
                      ((m & bitoftype_(s_enum)) && sort == FMT_INT) : 0
                    )
 
@@ -1632,9 +1632,10 @@ static Expr *formatcheck(Expr *e, ExprList *l, FormTypeList *d, int32 flavour)
  * the integer-only version.
  */
     default:        if (1<=flavour && flavour<=3 &&
-                            (feature & (FEATURE_PCC|FEATURE_FUSSY)) ==
-                                FEATURE_FUSSY)
-                        cc_warn(sem_warn_uncheckable_format);
+                        HasFeature(Feature_Fussy) &&
+                        !HasFeature(Feature_PCC))
+                    { cc_warn(sem_warn_uncheckable_format);
+                    }
                     break;
             }
             break;
@@ -1860,7 +1861,7 @@ Expr *ensurelvalue(Expr *e, AEop op)
 /* This code catches things like &(a.b) where "struct {int b[4];} a" */
 /* but, oh misfortune, that is just what happens inside the macro    */
 /* for offsetof(). Ah well.                                          */
-            if (feature & FEATURE_PCC) cc_warn(sem_warn_addr_array, e);
+            if (HasFeature(Feature_PCC)) cc_warn(sem_warn_addr_array, e);
             /* remember &(f().m) with m an array member is OK!       */
         }
     }
@@ -1977,7 +1978,7 @@ Expr *ensurelvalue(Expr *e, AEop op)
 /* force b_addrof in any binders recursively encountered...                 */
 /* AM: bug here: (float)x = 1; syserrs.                                     */
             cc_pccwarn(sem_rerr_lcast);
-            if (feature & FEATURE_PCC)
+            if (HasFeature(Feature_PCC))
             {
                 if (monadneedslvalue_(op)) op = s_addrof;
                 return ((h0_(ensurelvalue(arg1_(x), op)) == s_error)
@@ -2035,7 +2036,7 @@ static bool isunsignedtypespec(SET_BITMAP m)
 {  return ((m & bitoftype_(s_unsigned)) ||
            ((m & -m) == bitoftype_(s_char) &&
             !(m & bitoftype_(s_signed)) &&
-            !(feature & FEATURE_SIGNED_CHAR)));
+            !HasFeature(Feature_SignedChar)));
 }
 
 static bool iswidenedunsigned(Expr *e)
@@ -2847,7 +2848,7 @@ omit_check:
 static void check_index_overflow(Expr *ptr, Expr *disp, int posneg,
                                  bool deref)
 {   TypeExpr *t0;
-    if (feature & FEATURE_PCC) return;
+    if (HasFeature(Feature_PCC)) return;
     t0 = typeofexpr(ptr);
     ptr = skip_invisible_or_cast(ptr); /* @@@ skip_invisible doesn't work? */
     if (h0_(disp) == s_integer && h0_(ptr) == s_addrof)
@@ -2877,7 +2878,7 @@ static void check_index_overflow(Expr *ptr, Expr *disp, int posneg,
 }
 
 static void check_index_dereference(Expr *e)
-{   if (!(feature & FEATURE_PCC) && h0_(e) == s_content)
+{   if (!HasFeature(Feature_PCC) && h0_(e) == s_content)
     {   Expr *a = arg1_(e);
         if (h0_(a) == s_plus)
 #ifdef OLD_POINTER_CODE
@@ -3139,7 +3140,7 @@ case s_typespec:
                                        |bitoftype_(s_enum)) &&
                     /* next line copes with "long long" encoding.       */
                     !(m & bitoftype_(s_long)))
-                e = (feature & FEATURE_PCC) ?
+                e = HasFeature(Feature_PCC) ?
                     /* Someone might like to worry about the case       */
                     /* where default char is unsigned in PCC mode       */
                     /* does it then promote to signed int (as now) or   */
@@ -3158,7 +3159,7 @@ case s_typespec:
     case bitoftype_(s_double):
 /* The pcc mode code here may need improving (as char above) if PCC has */
 /* sizeof(0,(float)0)==sizeof(float) -- this code gives sizeof(double). */
-            if ((c == COERCE_ARG || feature & FEATURE_PCC) &&
+            if ((c == COERCE_ARG || HasFeature(Feature_PCC)) &&
                 (m & bitoftype_(s_short)))
                 return coerce2(e, te_double);
             return e;
@@ -3175,7 +3176,7 @@ case t_unknown:
 case t_content:
         return e;
 case t_subscript:
-        if (!(feature & FEATURE_PCC) && c != COERCE_VOIDED)
+        if (!HasFeature(Feature_PCC) && c != COERCE_VOIDED)
                                         /* recovery better be good.     */
             (void)ensurelvalue(e, s_addrof);
         /* Complications here coercing a const array into a pointer to  */
@@ -3694,7 +3695,7 @@ static Expr *mkincdec(AEop op, Expr *a)              /* op can be ++ -- */
                          (bitoftype_(s_int)|bitoftype_(s_unsigned)) ||
                     (m & (bitoftype_(s_char)|bitoftype_(s_unsigned))) ==
                          (bitoftype_(s_char)|bitoftype_(s_unsigned)) &&
-                       feature & FEATURE_PCC)
+                    HasFeature(Feature_PCC))
                   b = mkintconst(te_uint, 0xffff, 0);
             }
         }
@@ -3764,7 +3765,7 @@ case t_fnap:
 /* int a[5]; f(&a); we have a node &a with type (int *) but whose son    */
 /* is (int [5]).  Still this does not worry optimise, the only code to   */
 /* look inside an & node.                                                */
-    if (feature & FEATURE_PCC && h0_(tp) == t_subscript) t = typearg_(tp);
+    if (HasFeature(Feature_PCC) && h0_(tp) == t_subscript) t = typearg_(tp);
 
     /* The next line allows the offsetof() macro to reduce to a compile- */
     /* time constant as ANSI require.  @@@ Think a little more --        */
@@ -4329,12 +4330,12 @@ Expr *mkfnap(Expr *e, ExprList *l)
         }
         exprcar_(ll) = elt;
         if (formtype != NULL &&
-            (feature & (FEATURE_PCC|FEATURE_FUSSY)) != FEATURE_PCC &&
+            !(HasFeature(Feature_PCC) && !HasFeature(Feature_Fussy)) &&
             !qualfree_equivtype(promoted_formaltype(formtype),
                                 typeofexpr(elt)))
                 cc_warn(sem_warn_olde_mismatch, e);
 /* if TARGET_NULL_BITPATTERN != 0 and actual is (int)0 then warn if ...  */
-/* ... FEATURE_PREDECLARE or some such.                                  */
+/* ... Feature_Predeclare or some such.                                  */
     }
     if (LanguageIsCPlusPlus)
     {   if (lq != NULL)
@@ -4351,7 +4352,7 @@ Expr *mkfnap(Expr *e, ExprList *l)
       if (!(minargs_(t) <= len && len <= maxargs_(t)))
       {
         if (typefnaux_(t).oldstyle)
-        {   if ((feature & (FEATURE_PCC|FEATURE_FUSSY)) != FEATURE_PCC)
+        {   if (!(HasFeature(Feature_PCC) && !HasFeature(Feature_Fussy)))
                 cc_warn(sem_rerr_wrong_no_args, e);
         }
         else
@@ -4395,7 +4396,7 @@ static Expr *pointercast(AEop op, Expr *e, TypeExpr *te, TypeExpr *tr)
               err = 0;
             else
               err = errq;
-        } else if (!(feature & FEATURE_CPP) && isvoidtype(te))
+        } else if (!HasFeature(Feature_PCC) && isvoidtype(te))
         {   /* illegal in C++, so (later optionally) warn in ANSI C.    */
 #ifndef FOR_ACORN
             if (!errq) cc_ansi_warn(sem_warn_narrow_voidstar);
@@ -4478,7 +4479,7 @@ case 2: if (no_redundant)
                we needn't store the cast.
             */
             return e;
-        if (feature & FEATURE_TELL_PTRINT)
+        if (HasFeature(Feature_TellPtrInt))
             cc_warn(sem_warn_cast_sametype);
         /* drop through */
 case 1: /* permissible cast */
@@ -4493,7 +4494,7 @@ case 0: /* not obviously permissible, check more */
             return errornode;
 
 #ifdef TARGET_IS_ARM_OR_THUMB          /* /* LDS: for now, until policy is agreed */
-        if (op != s_cast || feature & FEATURE_ANOMALY)
+        if (op != s_cast || HasFeature(Feature_Anomoly))
 #endif
             (void)check_narrow_subterm(e, y, x);
         switch (h0_(x))
@@ -4515,8 +4516,8 @@ case 0: /* not obviously permissible, check more */
                         else
                             cc_pccwarn(sem_warn_fn_cast, op);
                     }
-                    else if ((!(feature & (FEATURE_PCC|FEATURE_LIMITED_PCC) ||
-                                   suppress & D_IMPLICITCAST)))
+                    else if (!( (HasFeature(Feature_PCC) || HasFeature(Feature_LimitedPCC)) ||
+                                   (suppress & D_IMPLICITCAST)))
                         cc_warn(sem_warn_fn_cast, op);
 /* AM: the following reflects a bug (fix) in the interface aetree->cg.     */
 /* There is danger here if a local static array, or address of a local var */
@@ -4605,7 +4606,7 @@ case 0: /* not obviously permissible, check more */
                     {   /* the only valid coercion from pointer */
                         if (op == s_cast)
 #endif /* TARGET_IS_ALPHA */
-                        { if (feature & FEATURE_TELL_PTRINT)
+                        { if (HasFeature(Feature_TellPtrInt))
                             /* police pointer purity */
                             cc_warn(sem_warn_pointer_int);
                         }
@@ -4637,8 +4638,8 @@ case 0: /* not obviously permissible, check more */
 /* Also consider making a fn out of the following to remove               */
 /* near duplication of code in the next case, but only if the text of     */
 /* the ...cast1 and ...cast2 messages can be unified.                     */
-/* @@@ relaxation guarded by FEATURE_PCC until cg.c can stop syserr()ing. */
-                        if (feature & FEATURE_PCC &&
+/* @@@ relaxation guarded by Feature_PCC until cg.c can stop syserr()ing. */
+                        if (HasFeature(Feature_PCC) &&
                             sizeoftype(x) == sizeoftype(y) &&
                             alignoftype(x) <= alignoftype(y))
                         {   /* same size, dest no more aligned than src */
@@ -4657,8 +4658,8 @@ case 0: /* not obviously permissible, check more */
                 case bitoftype_(s_struct):
                 case bitoftype_(s_class):
                 case bitoftype_(s_union):
-/* @@@ relaxation guarded by FEATURE_PCC until cg.c can stop syserr()ing. */
-                    if (feature & FEATURE_PCC &&
+/* @@@ relaxation guarded by Feature_PCC until cg.c can stop syserr()ing. */
+                    if (HasFeature(Feature_PCC) &&
                         sizeoftype(x) == sizeoftype(y) &&
                         alignoftype(x) <= alignoftype(y))
                         /* same size, dest no more aligned than src */

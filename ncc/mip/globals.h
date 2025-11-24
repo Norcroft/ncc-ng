@@ -43,6 +43,8 @@
 #  include "defs.h"
 #endif
 
+#include "config.h"
+
 #include "msg.h"
 
 /*
@@ -214,7 +216,7 @@ extern int32 suppress;
 #endif
 
 /* The following are used in some implementations to suppress ERRORS.   */
-/* Note: they partly duplicate the -FC (FEATURE_LIMITED_PCC) option.    */
+/* Note: they partly duplicate the -FC (Feature_LimitedPCC) option.     */
 /* Note: suppressing errors makes the implementation non-conforming.    */
 #define D_ZEROARRAY       0x10000L
 #define D_PPALLOWJUNK     0x20000L
@@ -254,72 +256,8 @@ extern int32 rtcheck;
 #define RTCHECK_DEADCODE               32L   /* pc */
 #endif
 
-/*
- * features
- */
-extern int32 feature;
-#define FEATURE_SAVENAME                    1L  /* arm(gen), mip */
-#define FEATURE_NOUSE                       2L  /* mip(bind) */
-#define FEATURE_PPNOUSE                     4L  /* cc */
-#define FEATURE_PREDECLARE                  8L  /* mip(bind) */
-#define FEATURE_ANOMALY                  0x10L  /* mip(regalloc) */
-#define FEATURE_ANNOTATE                 0x20L  /* arm(asm), potentially mip */
-#define FEATURE_WARNOLDFNS               0x40L  /* cc */
-#define FEATURE_TELL_PTRINT              0x80L  /* cc */
-#define FEATURE_UNEXPANDED_LISTING      0x100L  /* cc */
-#define FEATURE_USERINCLUDE_LISTING     0x200L  /* cc */
-#define FEATURE_SYSINCLUDE_LISTING      0x400L  /* cc */
-#define FEATURE_6CHARMONOCASE           0x800L  /* cc */
-#define FEATURE_ALLOWCOUNTEDSTRINGS    0x1000L
-#define FEATURE_CPP                   0x02000L  /* ISO/ANSI C++ Standard */
-#define FEATURE_CFRONT                0x04000L  /* want this near to _PCC... */
-#define FEATURE_PCC                   0x08000L  /* cc, mip(bind, misc) */
-#define FEATURE_ANSI                  0x10000L  /* ISO/ANSI C Standard */
-#define FEATURE_CFRONT_OR_PCC         (FEATURE_CFRONT|FEATURE_PCC)
-#define FEATURE_REVERSE_BITFIELDS     0x20000L  /* cc */
-#define FEATURE_PPCOMMENT             0x40000L  /* cc */
-#define FEATURE_WR_STR_LITS           0x80000L  /* mip(flowgraf) */
-#define FEATURE_SIGNED_CHAR          0x100000L  /* cc */
-#define FEATURE_FUSSY                0x200000L  /* for pedants & paranoiacs */
-#define FEATURE_UNIX_STYLE_LONGJMP   0x400000L /* mip */
-#define FEATURE_LET_LONGJMP_CORRUPT_REGVARS \
-                                     0x800000L  /* mip */
-                              /* meaningful only if _UNIX_STYLE_LONGJMP */
-#define FEATURE_AOF_AREA_PER_FN     0x1000000L  /* arm(aaof) */
-#define FEATURE_VERBOSE             0x2000000L  /* mip */
-#define FEATURE_DONTUSE_LINKREG     0x4000000L  /* mip */
-#define FEATURE_LIMITED_PCC         0x8000000L  /* pp, sem */
-#define FEATURE_KANDR_INCLUDE      0x10000000L  /* mip */
-#define FEATURE_INLINE_CALL_KILLS_LINKREG \
-                                   0x20000000L /* mip */
-#ifdef PASCAL /*ECN*/
-#define FEATURE_ISO                0x40000000L  /* cc */
-#else
-#define FEATURE_ENUMS_ALWAYS_INT   0x40000000L
-#endif
-#define FEATURE_NOWARNINGS         0x80000000L  /* mip(misc) */
-
-#ifdef PASCAL /*ECN*/
-#undef FEATURE_PREDECLARE
-#undef FEATURE_WARNOLDFNS
-#undef FEATURE_SYSINCLUDE_LISTING
-#undef FEATURE_WR_STR_LITS
-#undef FEATURE_PCC
-#undef FEATURE_ANOMALY
-#undef FEATURE_TELL_PTRINT
-#undef FEATURE_6CHARMONOCASE
-#define FEATURE_PREDECLARE         0
-#define FEATURE_WARNOLDFNS         0
-#define FEATURE_SYSINCLUDE_LISTING 0
-#define FEATURE_WR_STR_LITS        0
-#define FEATURE_PCC                0
-#define FEATURE_ANOMALY            0
-#define FEATURE_TELL_PTRINT        0
-#define FEATURE_6CHARMONOCASE      0
-#endif
-
 #ifdef CPLUSPLUS
-#define LanguageIsCPlusPlus (feature & FEATURE_CPP)
+#define LanguageIsCPlusPlus HasFeature(Feature_CPP)
 #else
 #define LanguageIsCPlusPlus 0
 #endif
@@ -367,7 +305,7 @@ extern int32 config;
 /* Note: 3 separate endianness variables:                                  */
 /*   target_lsbytefirst                    - big/little-endian             */
 /*   target_lsbitfirst                     - bitfields within machine word */
-/*   features & FEATURE_REVERSE_BITFIELDS  - reverse bfs within container  */
+/*   HasFeature(Feature_ReverseBitfields)  - reverse bfs within container  */
 
 /* Currently force lsbitfirst to by lsbytefirst until there is a mechanism */
 /* for changing it (IJR).                                                  */

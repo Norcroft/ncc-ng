@@ -1159,7 +1159,7 @@ void codebuf_reinit(void)
     litalign = 4;
 #ifdef TARGET_HAS_MULTIPLE_CODE_AREAS
     if (codebase > 0 &&
-        ((feature & FEATURE_AOF_AREA_PER_FN) ||
+        (HasFeature(Feature_AOFAreaPerFn) ||
          (var_aof_code_area > code_area_idx)))
 #ifdef PUT_FILE_NAME_IN_AREA_NAME
     {   int32 n = var_aof_code_area;

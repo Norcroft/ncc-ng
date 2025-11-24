@@ -1,0 +1,37 @@
+FEATURE(SaveName)                   // arm(gen), mip
+FEATURE(NoUse)                      // mip(bind)
+FEATURE(PPNoUse)                    // cc
+FEATURE(Predeclare)                 // mip(bind)
+FEATURE(Anomoly)                    // mip(regalloc)
+FEATURE(Annotate)                   // arm(asm), potentially mip
+FEATURE(WarnOldFns)                 // cc
+FEATURE(TellPtrInt)                 // cc
+FEATURE(UnexpandedListing)          // cc
+FEATURE(UserIncludeListing)         // cc
+FEATURE(SysIncludeListing)          // cc
+FEATURE(6CharMonocase)              // cc
+FEATURE(AllowCountedStrings)
+FEATURE(CPP)                        // ISO/ANSI C++ Standard
+FEATURE(CFront)                     // want this near to _PCC...
+FEATURE(PCC)                        // cc, mip(bind, misc)
+FEATURE(ANSI)                       // ISO/ANSI C Standard
+FEATURE(ReverseBitfields)           // cc
+FEATURE(PPComment)                  // cc
+FEATURE(WRStrLits)                  // mip(flowgraf)
+FEATURE(SignedChar)                 // cc
+FEATURE(Fussy)                      // for pedants & paranoiacs
+FEATURE(UnixStyleLongjmp)           // mip
+FEATURE(LetLongjmpCorruptRegVars)   // mip - meaningful only if _UnixStyleLongjmp
+FEATURE(AOFAreaPerFn)               // arm(aaof)
+FEATURE(Verbose)                    // mip
+FEATURE(DontUseLinkReg)             // mip
+FEATURE(LimitedPCC)                 // pp, sem
+FEATURE(KandRInclude)               // mip
+FEATURE(InlineCallKillsLinkReg)     // mip
+FEATURE(NoWarnings)                 // mip(misc)
+
+#ifdef PASCAL /*ECN*/
+FEATURE(ISO)                        // pascal
+#else
+FEATURE(EnumsAlwaysInt)             // cc
+#endif

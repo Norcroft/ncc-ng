@@ -389,7 +389,7 @@ static void genpointer(Expr *einit)
             return;
         }
         case_s_any_string
-            if ((feature & FEATURE_WR_STR_LITS) ||
+            if (HasFeature(Feature_WRStrLits) ||
                 (config & CONFIG_REENTRANT_CODE)) {
               /*
                * Standard pcc mode: first dump a reference to the
@@ -530,7 +530,7 @@ case s_typespec:
                      *  changes elsewhere means it works in ansi mode.
                      *  but it does allow:  int x = (int)"abc";
                      */
-                    if ((feature & FEATURE_PCC) && (sizeoftype(t) == 4))
+                    if (HasFeature(Feature_PCC) && (sizeoftype(t) == 4))
                     {   Expr *init = rdinit(t,whole,0);
                         if (init == 0) gendcI_a(4, 0, aligned);
                         else if (h0_(init) == s_integer)
@@ -808,11 +808,12 @@ static void initstaticvar_1(
         }
         {
 #ifdef TARGET_IS_ACW
-/* The following (hackish) lines force FEATURE_WR_STR_LITS (which puts   */
+/* The following (hackish) lines force Feature_WRStrLits (which puts     */
 /* strings in data segment) for the Acorn 32000 machine) which, due to   */
 /* TARGET_CALL_USES_DESCRIPTOR, are unhappy abount code segment adcons   */
 /* (as opposed to descriptors) in a data segment.                        */
-            int32 f = feature; feature |= FEATURE_WR_STR_LITS;
+            bool hadWRStrLits = HasFeature(Feature_WRStrLits);
+            SetFeature(Feature_WRStrLits);
 #endif
             initsubstatic(btype, b, YES, einit);
 /* Note that the following padstatic(alignof_toplevel) helps alignment   */
@@ -821,7 +822,8 @@ static void initstaticvar_1(
 /* See the call to trydeletezerodata().                                  */
             padstatic(alignof_toplevel_static);
 #ifdef TARGET_IS_ACW
-            feature = f;
+            if (!hadWRStrLits)
+                ClearFeature(Feature_WRStrLits);
 #endif
         }
     }
@@ -1140,7 +1142,7 @@ case bitofstg_(s_extern):
         }
         else    /* declaration with no explicit initialisation.         */
         {
-            if (feature & FEATURE_PCC)
+            if (HasFeature(Feature_PCC))
             {   TypeExpr *t = princtype(bindtype_(b));
                 /*
                  * Found a declaration like int foo; with no initialiser.
@@ -1220,7 +1222,7 @@ case bitofstg_(s_extern):
 switch_break:
 /* AM Aug 90: bug fix to stop initialisation of a tentative to be a     */
 /* string pointer leaving the string pointer in the wrong place in the  */
-/* data segment in FEATURE_WR_STR_LITS mode.  Now that the ANSI std     */
+/* data segment in Feature_WRStrLits mode.  Now that the ANSI std       */
 /* has appeared, the whole tentative/bss/vargen edifice ought to be     */
 /* rationally reconstructed.                                            */
    /*
@@ -1246,7 +1248,7 @@ switch_break:
      * values in the data-generation templates that will cause those
      * references to be dumped in the data area... Note that we reverse
      * the work list so literals are generated in source order.
-     * Note also that the following is a no-op unless FEATURE_WR_STR_LITS.
+     * Note also that the following is a no-op unless Feature_WRStrLits.
      */
     {   struct StrLit *p = (struct StrLit *) dreverse((List *)str_lits);
         for (; p != NULL;  p = p->next)

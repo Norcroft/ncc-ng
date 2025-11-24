@@ -74,7 +74,7 @@
 #endif
 
 long sysdebugmask;
-int32 suppress, feature;
+int32 suppress;
 int32 localcg_debugcount;
 FILE *listingstream;
 FILE *errors;
@@ -376,7 +376,7 @@ void summarise(void)
                             *Space for message and filename, we hope.
                             */
   if (warncount != 0 || recovercount != 0 || errorcount != 0
-      || (feature & FEATURE_VERBOSE))
+      || HasFeature(Feature_Verbose))
   { /* The NLS here is very minimal. We only special case 0 or 1 errors
      * (sufficient for most Western European languages). Generalising
      * this to any language would require a reworking of the NLS system
@@ -398,7 +398,7 @@ void summarise(void)
     }
 #endif
     s += strlen(s);
-    if (xwarncount && !(feature & FEATURE_PCC)) {
+    if (xwarncount && !HasFeature(Feature_PCC)) {
       misc_snprintf(s, misc_message_sum2, (long)xwarncount);
       s += strlen(s);
     }
@@ -1377,7 +1377,7 @@ void cc_fatalerr(msg_t errorcode, ...)
 
 void cc_warn_l(int32 n, msg_t errorcode, va_list a)
 {
-    if (!(feature & FEATURE_NOWARNINGS))
+    if (!HasFeature(Feature_NoWarnings))
     {   ++warncount;
         superrprintf(errorcode, a);
         ReportError(BC_SEVERITY_WARN, n);
@@ -1399,7 +1399,7 @@ void cc_ansi_warn(msg_t errorcode, ...)
 /* called to issue a warning that's suppressed in pcc mode */
 {
     va_list a;
-    if (feature & FEATURE_PCC) return;
+    if (HasFeature(Feature_PCC)) return;
     va_start(a, errorcode);
     cc_warn_l(curlex.fl.l, errorcode, a);
     va_end(a);
@@ -1413,7 +1413,7 @@ void cc_pccwarn(msg_t errorcode, ...)
 {
     va_list a;
     va_start(a, errorcode);
-    if (feature & FEATURE_PCC)
+    if (HasFeature(Feature_PCC))
         cc_warn_l(curlex.fl.l, errorcode, a);
     else
         cc_rerr_l(curlex.fl.l, errorcode, a);
@@ -1442,7 +1442,7 @@ void cc_ansi_rerr(msg_t errorcode, ...)
 /*  which is always suppressed in -pcc mode.              */
 {
     va_list a;
-    if (feature & FEATURE_PCC) return;
+    if (HasFeature(Feature_PCC)) return;
     va_start(a, errorcode);
     cc_rerr_l(curlex.fl.l, errorcode, a);
     va_end(a);

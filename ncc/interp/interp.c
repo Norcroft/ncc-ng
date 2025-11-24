@@ -1268,10 +1268,10 @@ extern void cc_init(void)
     int i;
 
 #if 0
-    feature |= FEATURE_CPP;
+    SetFeature(Feature_CPP);
 #else
-    feature |= FEATURE_ANSI;
-    feature &= ~(FEATURE_PCC|FEATURE_CPP|FEATURE_CFRONT);
+    SetFeature(Feature_ANSI);
+    ClearFeatires3(Feature_PCC, Feature_CPP, Feature_CFront);
 #endif
     expr_string = "";
     errstate_init();

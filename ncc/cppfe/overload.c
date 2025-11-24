@@ -1296,7 +1296,7 @@ static int compute_match_value(OvldCandidate *c, TypeExpr *t, const Expr *e,
             if ((derivation_level = 0, type_derived_from(f, t)))
                 match = MATCH_3 - (2*derivation_level);
             else if (qualfree_equivtype(f, te_void) ||
-                    (feature & FEATURE_CFRONT) &&
+                    HasFeature(Feature_CFront) &&
                     cfront_allows_pointercast(t, f))
                 match = MATCH_3_V;
             else if (istypevar(t) || istypevar(f))

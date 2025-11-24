@@ -218,11 +218,17 @@ DEPREDIR =
 endif
 
 # sources ----------------------
+# Common across c, cpp, interp, clbcomp
+CC_CORE := \
+  	mip/aetree.c mip/misc.c mip/compiler.c mip/config.c
+
+# Common across c, cpp
 CC_COMMON := \
-  mip/aetree.c mip/cg.c mip/codebuf.c mip/compiler.c mip/cse.c mip/csescan.c \
-  mip/cseeval.c mip/driver.c mip/dwarf.c mip/dwarf1.c mip/dwarf2.c \
-  mip/flowgraf.c mip/inline.c mip/jopprint.c mip/misc.c mip/regalloc.c \
-  mip/regsets.c mip/sr.c mip/store.c mip/main.c mip/dump.c mip/version.c \
+  $(CC_CORE) \
+  mip/cg.c mip/codebuf.c mip/cse.c mip/csescan.c mip/cseeval.c mip/driver.c \
+  mip/dwarf.c mip/dwarf1.c mip/dwarf2.c mip/flowgraf.c mip/inline.c \
+  mip/jopprint.c mip/regalloc.c mip/regsets.c mip/sr.c mip/store.c \
+  mip/main.c mip/dump.c mip/version.c \
   \
   armthumb/aaof.c armthumb/asd.c armthumb/dwasd.c \
   armthumb/asmsyn.c armthumb/asmcg.c \
@@ -237,20 +243,23 @@ CPPFE_SOURCES := \
   cppfe/xlex.c cppfe/xsem.c cppfe/xsyn.c cppfe/xvargen.c \
   cfe/pp.c cfe/simplify.c
 
-ARM_SRCS := arm/asm.c arm/gen.c arm/mcdep.c arm/peephole.c
+# Backends
+ARM_SRCS   := arm/asm.c arm/gen.c arm/mcdep.c arm/peephole.c
 THUMB_SRCS := thumb/asm.c thumb/gen.c thumb/mcdep.c thumb/peephole.c
 
 INTERP_SRCS := \
   interp/interp.c \
-  mip/builtin.c mip/aetree.c mip/misc.c mip/store.c mip/bind.c mip/compiler.c \
+  mip/builtin.c mip/store.c mip/bind.c \
   cfe/pp.c \
+  $(CC_CORE) \
   $(CPPFE_SOURCES) \
   $(CFE_SOURCES) \
 
 CLBCOMP_SRCS := \
-	mip/aetree.c mip/misc.c mip/compiler.c clbcomp/clbcomp.c \
+    clbcomp/clbcomp.c \
 	clbcomp/clb_store.c cppfe/xsyn.c cppfe/xsem.c cppfe/xbuiltin.c \
-	cppfe/xbind.c cppfe/overload.c cppfe/xlex.c cfe/simplify.c cfe/pp.c
+	cppfe/xbind.c cppfe/overload.c cppfe/xlex.c cfe/simplify.c cfe/pp.c \
+  $(CC_CORE) \
 
 SUPPORT_SRCS := \
   ncc-support/dde.c \

@@ -342,7 +342,7 @@ static void initpriovec(void)
         ~(bitoftype_(s_int) | bitoftype_(s_signed) | bitoftype_(s_unsigned) |
           bitoftype_(s_double) | bitoftype_(s_float) |
           CVBITS);
-    if (!(feature & FEATURE_FUSSY)) {
+    if (!HasFeature(Feature_Fussy)) {
         illtypecombination[shiftoftype_(s_long)] &= ~bitoftype_(s_long);
         illtypecombination[shiftoftype_(s_longlong)] =
             ~(bitoftype_(s_int) | bitoftype_(s_signed) | bitoftype_(s_unsigned) |
@@ -429,19 +429,19 @@ static TypeExpr *check_bittype(TypeExpr *t)
     {   cc_err(syn_rerr_bitfield, t);
         t = te_int;
     }
-    if (!(feature & FEATURE_CPP)
+    if (!HasFeature(Feature_PCC)
         && (typespecmap_(t) & (bitoftype_(s_char)|bitoftype_(s_short)|
                                bitoftype_(s_enum)|bitoftype_(s_long))))
     {
-        if (feature & FEATURE_FUSSY) {
+        if (HasFeature(Feature_Fussy)) {
             cc_rerr(syn_rerr_ANSIbitfield, t);
             t = te_int;
-        } else if (!(feature & FEATURE_PCC))
+        } else if (!HasFeature(Feature_PCC))
         /* @@@ warn for any non-ANSI C bitfield type, but leave alone!  */
             cc_warn(syn_rerr_ANSIbitfield, t);
     }
 /* sem.c is responsible for the interpretation of 'plain' int bitfields     */
-/* as signed/unsigned (q.v. under FEATURE_SIGNED_CHAR).                     */
+/* as signed/unsigned (q.v. under Feature_SignedChar).                      */
 /* It is vital that 'BITFIELD' on the next line does not qualify a typedef. */
     return primtype2_(typespecmap_(t) | BITFIELD, typespecbind_(t));
 }
@@ -1164,7 +1164,7 @@ static Expr *rd_prefixexp(int labelhack)
 /* Note ::new and ::delete are valid, but neither S::* nor S::~.        */
     switch (op = curlex.sym)
     {
-case s_plus:    if (feature & FEATURE_PCC)
+case s_plus:    if (HasFeature(Feature_PCC))
                    cc_warn(syn_warn_unary_plus);
 case s_and:
 case s_times:   /* N.B. not s_qualified+s_times.                        */
@@ -1405,7 +1405,7 @@ int32 syn_begin_agg(void)
 {   if (syn_initdepth < 0) return 0;
     if (curlex.sym == s_lbrace)
     {   nextsym();
-        if (!LanguageIsCPlusPlus && (feature & FEATURE_FUSSY) &&
+        if (!LanguageIsCPlusPlus && HasFeature(Feature_Fussy) &&
             curlex.sym == s_rbrace)
             cc_rerr(syn_rerr_empty_init);
         syn_initdepth++;
@@ -1716,7 +1716,7 @@ static Cmd *rd_for_2(Expr *e1, FileLine fl)
     }
 }
 
-#define cfront_semantics ((feature & FEATURE_CFRONT) && \
+#define cfront_semantics (HasFeature(Feature_CFront) && \
                 !(var_cc_private_flags & 16777216L))
 static Cmd *rd_command(bool declposs)
 {
@@ -2109,7 +2109,7 @@ case s_catch:
         return 0;
 #ifdef TARGET_HAS_INLINE_ASSEMBLER
 case s_asm:
-        if (feature & FEATURE_FUSSY)
+        if (HasFeature(Feature_Fussy))
             cc_err(syn_err_asm_not_available);
         push_exprtemp_scope();
         c = rd_asm_block();
@@ -2239,7 +2239,7 @@ static DeclSpec rd_declspec(int declflag,
             if (curlex_typename == 0)
             {   if (((stgseen & bitofstg_(s_friend)) &&
                     peepsym() == s_semicolon &&
-                    (feature & FEATURE_CFRONT))         /* friend X; */
+                     HasFeature(Feature_CFront))         /* friend X; */
                     || ((declflag & TFORMAL) && s == s_typename))
                                                         /* <typename T> same as <class T> */
 
@@ -2686,7 +2686,7 @@ than annoying.  Probably we don't understand the reason for it.
     if (typesseen & bitoftype_(s_float))    /* normalise for rest of system */
     {   typesseen ^= (bitoftype_(s_float) ^ bitoftype_(s_double));
         if (typesseen & bitoftype_(s_long))
-        {   if (!(suppress & D_LONGFLOAT) && !(feature & FEATURE_PCC))
+        {   if (!(suppress & D_LONGFLOAT) && !HasFeature(Feature_PCC))
              { suppress |= D_LONGFLOAT;
                cc_rerr(syn_rerr_long_float);
              }
@@ -3401,7 +3401,7 @@ static void ensure_formals_typed(DeclRhsList *d, bool proto)
                 /* @@@ ensure that f(,) error has not got this far */
                 cc_rerr(syn_rerr_missing_type2, d->declname);
             else
-              if (!(feature & FEATURE_PCC))
+              if (!HasFeature(Feature_PCC))
                   /* God knows why ANSI do not consider this an error */
                   cc_warn(syn_warn_undeclared_parm, d->declname);
 
@@ -3436,7 +3436,7 @@ static void merge_formal_decl(DeclRhsList *d, DeclRhsList *dnew)
 
 static void CheckReturnType(TypeExpr *fntype)
 {
-    if (!LanguageIsCPlusPlus && (feature & FEATURE_FUSSY))
+    if (!LanguageIsCPlusPlus && HasFeature(Feature_Fussy))
     {   /* dr 113: only 'void' is allowed as a function's return type   */
         /* not any void type.                                           */
         TypeExpr *resulttype = typearg_(fntype);
@@ -3462,12 +3462,11 @@ static void fixup_fndef(DeclRhsList *temp, Binder *mbind)
             mbind ? bindparent_(mbind) : current_member_scope());
     }
     if (curlex.sym != s_lbrace && curlex.sym != s_colon)
-    {   if (feature & FEATURE_WARNOLDFNS)
+    {   if (HasFeature(Feature_WarnOldFns))
             cc_warn(syn_warn_old_style, temp->declname);
     }
     else
-    {   if ((feature & (FEATURE_PCC|FEATURE_FUSSY)) ==
-                       (FEATURE_PCC|FEATURE_FUSSY))
+    {   if (HasFeature(Feature_PCC) && HasFeature(Feature_Fussy))
             /* @@@ The next line considers f(){} ANSI only! */
             cc_warn(syn_warn_ANSI_decl, symname_(temp->declname));
     }
@@ -3478,7 +3477,7 @@ static void fixup_fndef(DeclRhsList *temp, Binder *mbind)
     if (!fntypeisvariadic(fntype))
     {   if (fnpars == 0)
         {   maxargs_(fntype) = 0;
-            if (!(feature & FEATURE_PCC))
+            if (!HasFeature(Feature_PCC))
                 /* treat f() {} as f(void) {} in ANSI mode... */
                 typefnaux_(fntype).oldstyle = 0;
         }
@@ -4192,7 +4191,7 @@ static TopDecl *rd_fndef(DeclRhsList *d, int declflag, TagBinder *parent,
             /* Flag 'this' used in virtual member fn (implicit use).  */
             binduses_(ab) |= u_referenced;
 
-        if (!LanguageIsCPlusPlus && !(feature & FEATURE_PREDECLARE))
+        if (!LanguageIsCPlusPlus && !HasFeature(Feature_Predeclare))
             /* preclude any whinge about unused fn args */
             /* Allow whinges in C++ since formal names are omittable. */
             binduses_(ab) |= u_referenced;
@@ -4403,7 +4402,7 @@ static TopDecl *rd_fndef(DeclRhsList *d, int declflag, TagBinder *parent,
 #ifdef TARGET_HAS_SPECIAL_VARARGS
         fntypeisvariadic(fntype)
 #else
-        (fntypeisvariadic(fntype) || (lambdap!=0) && (feature&FEATURE_PCC))
+        (fntypeisvariadic(fntype) || (lambdap!=0) && HasFeature(Feature_PCC))
 #endif
         );
   }
@@ -4540,7 +4539,7 @@ static TopDecl *rd_decl(int declflag, SET_BITMAP accbits)
             declflag & MEMBER && ds.stg & bitofstg_(s_friend))
         {   if (!isclasstype_(t)) t = princtype(t);
             if (isclasstype_(t))
-            {   if (t != ds.t && !(feature & FEATURE_CFRONT))
+            {   if (t != ds.t && !HasFeature(Feature_CFront))
                     cc_rerr(syn_err_friend_type);
                 mk_friend_class(typespectagbind_(t), current_member_scope());
             }
@@ -4607,7 +4606,7 @@ anonu:      /* what a horrible place to put a label!                    */
             /* This has to be done after reading the body due to ANSI   */
             /* scope joining of formals and body top block.             */
             if (d == NULL) syserr("rd_decl: no top fn");
-            if (feature & FEATURE_PCC && !(declflag & MEMBER))
+            if (HasFeature(Feature_PCC) && !(declflag & MEMBER))
                 implicit_return_ok = syn_oldeformals;
             if (!(declsynflags & (B_TYPESEEN|B_STGSEEN)) ||
                 ((LanguageIsCPlusPlus || !(suppress & D_FUTURE)) &&
@@ -4717,7 +4716,7 @@ anonu:      /* what a horrible place to put a label!                    */
              ((LanguageIsCPlusPlus || !(suppress & D_FUTURE)) &&
               (declsynflags & B_IMPLICITINT))) &&
             !((declflag & FORMAL) && is_untyped_(d->decltype)) &&
-            !(feature & FEATURE_PCC))
+            !HasFeature(Feature_PCC))
         {   DeclRhsList *x = d;
 /* the case d==0 has already been reported by rd_declarator/DeclRhslist */
             bool complained = false;
@@ -4744,7 +4743,7 @@ anonu:      /* what a horrible place to put a label!                    */
                         /* Cfront allows any member function decl       */
                         /* to have implicit int return type.  But the   */
                         /* Newton sources do not need this.             */
-                        if (isfntype(x->decltype) && (feature & FEATURE_CFRONT))
+                        if (isfntype(x->decltype) && HasFeature(Feature_CFront))
                             cc_warn(syn_warn_lacks_storage_type, x->declname);
                         else
 #endif /* CFRONT_MODE_WARN_LACKS_STORAGE_TYPE */
@@ -4778,7 +4777,7 @@ anonu:      /* what a horrible place to put a label!                    */
     }
     if (!(declflag & (FORMAL|TFORMAL|CATCHER)))
     {
-      if (!(feature & FEATURE_PCC) || curlex.sym != s_rbrace)
+      if (!HasFeature(Feature_PCC) || curlex.sym != s_rbrace)
         checkfor_delimiter_2ket(s_semicolon, s_comma);
     }
   }
@@ -5028,7 +5027,7 @@ static void rd_enumdecl(TagBinder *tb)
     bool has_neg = NO, needs_unsigned = NO, is_non_neg = YES;
     nextsym();
 
-    if (curlex.sym == s_comma && (feature & FEATURE_CFRONT))
+    if (curlex.sym == s_comma && HasFeature(Feature_CFront))
     {   cc_warn(syn_warn_extra_comma);
         nextsym();
     }
@@ -5123,7 +5122,8 @@ static void rd_enumdecl(TagBinder *tb)
         if (curlex.sym != s_comma) break;
         nextsym();
         if (curlex.sym == s_rbrace)
-        {   if (feature & FEATURE_CFRONT_OR_PCC) cc_warn(syn_warn_extra_comma);
+        {   if (HasFeature(Feature_CFront) || HasFeature(Feature_PCC))
+                cc_warn(syn_warn_extra_comma);
             else cc_rerr(syn_warn_extra_comma);
             break;
         }
@@ -5136,7 +5136,7 @@ static void rd_enumdecl(TagBinder *tb)
     {   SET_BITMAP container;
         if (needs_unsigned)
             container = TB_CONTAINER_UINT;
-        else if (feature & FEATURE_ENUMS_ALWAYS_INT)
+        else if (HasFeature(Feature_EnumsAlwaysInt))
             container = TB_CONTAINER_INT;
         else if (minval >= 0)
             container = maxval < (1 << 8) ?             TB_CONTAINER_UCHAR :
