@@ -13,4 +13,4 @@
  * limitations under the License.
  */
 
-#define TOOLVER_ARMCC "SDT 211a Final"
+#define TOOLVER_ARMCC "SDT 2.11a Final"

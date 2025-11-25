@@ -624,10 +624,10 @@ static void printsym_with_class(char const *format, Symstr const *sym,
         errprintf(format, sbuf);
     }
 #else
+    char buf[256];
     if (LanguageIsCPlusPlus)
     {   const char *classname = parent != NULL ? symname_(tagbindsym_(parent)) : NULL;
         int classlen = classname != NULL ? strlen(classname) : 0;
-        char buf[256];
         name = unmangle_with_class(name, classname, classlen, buf, sizeof(buf));
     }
 #endif
