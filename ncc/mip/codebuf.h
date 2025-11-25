@@ -163,6 +163,28 @@ extern struct CodeAndFlag {
 #ifndef NO_ASSEMBLER_OUTPUT     /* i.e. lay off otherwise */
 extern VoidStar (*(codeasmauxvec[CODEVECSEGMAX])) [CODEVECSEGSIZE];
 # define code_aux_(q) (*codeasmauxvec[CODE_SEG_INDEX(q)]) [CODE_ELEM_INDEX(q)]
+
+#if RECORD_SOURCE_LOCATION
+extern MiniFileLine *codefilelinevec[CODEVECSEGMAX];
+
+# define code_fileline_(q)  codefilelinevec[CODE_SEG_INDEX(q)][CODE_ELEM_INDEX(q)]
+# define code_fileline_f(q) (codefilelinevec[CODE_SEG_INDEX(q)][CODE_ELEM_INDEX(q)].f)
+# define code_fileline_l(q) (codefilelinevec[CODE_SEG_INDEX(q)][CODE_ELEM_INDEX(q)].l)
+# define code_fileline_c(q) (codefilelinevec[CODE_SEG_INDEX(q)][CODE_ELEM_INDEX(q)].column)
+
+# define code_fileline_set(q, fl) \
+    do { \
+        if ((fl) == 0) { \
+            code_fileline_f(q) = 0; \
+            code_fileline_l(q) = 0; \
+            code_fileline_c(q) = 0; \
+        } else { \
+            code_fileline_f(q) = (fl)->f; \
+            code_fileline_l(q) = (fl)->l; \
+            code_fileline_c(q) = (fl)->column; \
+        } \
+    } while(0)
+#endif
 #endif // !NO_ASSEMBLER_OUTPUT
 
 /* The following macros provide easy access to blocks for xxx/obj.c     */
@@ -215,7 +237,9 @@ extern int32 codeseg_function_name(Symstr *name, int32 argn);
 extern void show_entry(Symstr *name, int flags);
 extern void show_code(Symstr *name);
 extern void outcodeword(int32 w, int32 f);
+extern void outcodeword_fl(int32 w, int32 f, MiniFileLine *fl);
 extern void outcodewordaux(int32 w, int32 f, VoidStar aux);
+extern void outcodewordaux_fl(int32 w, int32 f, VoidStar aux, MiniFileLine *fl);
 extern void outlitword(int32 w, int32 flavour, Symstr *sym, VoidStar aux,
                        int32 flag);
 extern int32 codeloc(void);

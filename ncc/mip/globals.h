@@ -298,6 +298,9 @@ typedef struct CurrentFnDetails {
     BindList *argbindlist;
     int32 fnname_offset;      /* for xxx/gen.c    */
     FileLine fl;
+#if RECORD_SOURCE_LOCATION
+    MiniFileLine start_fl;
+#endif
 } CurrentFnDetails;
 
 extern CurrentFnDetails currentfunction;
@@ -385,6 +388,10 @@ extern void reg_setallused(RealRegSet *s);      /* not as nasty as memcpy */
 
 #define StrEq(a, b) (strcmp((a), (b)) == 0)
 #define StrnEq(a, b, n) (strncmp((a), (b), (n)) == 0)
+
+#ifndef RECORD_SOURCE_LOCATION
+#define RECORD_SOURCE_LOCATION 0
+#endif
 
 #endif
 

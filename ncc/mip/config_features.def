@@ -30,6 +30,8 @@ FEATURE(KandRInclude)               // mip
 FEATURE(InlineCallKillsLinkReg)     // mip
 FEATURE(NoWarnings)                 // mip(misc)
 
+FEATURE(AsmIncludesLocation)        // arm(asm), potentially more backends
+
 #ifdef PASCAL /*ECN*/
 FEATURE(ISO)                        // pascal
 #else

@@ -26,6 +26,7 @@
 #endif
 
 extern bool has_main;
+extern const FileLine *current_fl;
 
 extern J_OPCODE Q_swap(J_OPCODE);
 /* alter a condition mask as required after interchanging the two operands

@@ -55,6 +55,10 @@ static char const *fregnames[8] = {"f0","f1","f2","f3","f4","f5","f6","f7"};
 static Symstr *out_codeseg;
 static bool first_area;
 static bool new_area;
+#if RECORD_SOURCE_LOCATION
+// Records the last outputted location to avoid duplication.
+static MiniFileLine last_fileline;
+#endif
 
 static void newline(void)
 {
@@ -391,6 +395,31 @@ static void asm_scancode(void)
 
 static bool headerdone;
 
+#if RECORD_SOURCE_LOCATION
+static void output_location(MiniFileLine* fl, FILE* as)
+{
+    const char *file = fl->f;
+    unsigned int line = fl->l;
+    unsigned int col  = fl->column;
+
+    if (file == NULL)
+        return;
+
+    if (last_fileline.f == NULL || strcmp(last_fileline.f, file) != 0) {
+        indent8();
+        fprintf(as, "; source-file: \"%s\", line %u\n", file, line);
+        last_fileline.f = file;
+        last_fileline.l = line;
+        last_fileline.column = col;
+    } else if (line > 0 && (line != last_fileline.l || col != last_fileline.column)) {
+        indent8();
+        fprintf(as, "; line: %u %u\n", line, col);
+        last_fileline.l = line;
+        last_fileline.column = col;
+    }
+}
+#endif
+
 static void asm_areadef(char const *name, char const *attrib1, char const *attrib2)
 {
     newline();
@@ -453,12 +482,26 @@ void display_assembly_code(Symstr const *name)
         pr_asmsym(name);
         pr_unmangled_name(name);
         newline();
+#if RECORD_SOURCE_LOCATION
+        if (HasFeature(Feature_AsmIncludesLocation))
+            output_location(&currentfunction.start_fl, as);
+#endif
     }
     asm_scancode();
     for (q = 0, qend = codep; q < qend; q += 4)    /* q is now a BYTE offset */
     {   int32 w = code_inst_(q),
               f = code_flag_(q);
         VoidStar aux = code_aux_(q);
+
+#if RECORD_SOURCE_LOCATION
+        if (HasFeature(Feature_AsmIncludesLocation) &&
+            code_fileline_f(q) != NULL &&
+            (f == LIT_RELADDR || f == LIT_OPCODE))
+        {
+            output_location(&code_fileline_(q), as);
+        }
+#endif
+
         if (needslabel(q / 4))
         {   indent_18_if_annotating();
             printlabelname(buf, "", "\n", q, name);

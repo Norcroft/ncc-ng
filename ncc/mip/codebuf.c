@@ -69,11 +69,15 @@ static bool codebuf_inroutine;
    put "abc" in the code segment and just put a pointer in the data
    segment (it is as non modifyable as other strings)  */
 
-/* codeandflagvec and codeasmauxvec are doubly indexed by a BYTE address: */
+// codeandflagvec, codeasmauxvec and codefilelinevec are doubly indexed by
+// a BYTE address:
 struct CodeAndFlag *codeandflagvec[CODEVECSEGMAX];
 
 #ifndef NO_ASSEMBLER_OUTPUT     /* i.e. lay off otherwise */
 VoidStar (*(codeasmauxvec[CODEVECSEGMAX])) [CODEVECSEGSIZE];
+#if RECORD_SOURCE_LOCATION
+MiniFileLine *codefilelinevec[CODEVECSEGMAX];
+#endif
 #endif // !NO_ASSEMBLER_OUTPUT
 
 static int32 codeveccnt;
@@ -567,7 +571,15 @@ void outcodeword(int32 w, int32 f)      /* macro soon? */
 {   outcodewordaux(w, f, 0);
 }
 
+void outcodeword_fl(int32 w, int32 f, MiniFileLine* fl)
+{   outcodewordaux_fl(w, f, 0, fl);
+}
+
 void outcodewordaux(int32 w, int32 f, VoidStar aux)
+{   outcodewordaux_fl(w, f, aux, 0);
+}
+
+void outcodewordaux_fl(int32 w, int32 f, VoidStar aux, MiniFileLine* fl)
 {
 #ifndef TARGET_IS_NULL
     int32 q = codep;    /* byte address */
@@ -578,6 +590,12 @@ void outcodewordaux(int32 w, int32 f, VoidStar aux)
 /* Only set up codeasmauxvec to store aux items if asmstream is active. */
         codeasmauxvec[codeveccnt] = (VoidStar (*)[CODEVECSEGSIZE]) (
             asmstream ? BindAlloc(sizeof(*codeasmauxvec[0])) : DUFF_ADDR);
+#if RECORD_SOURCE_LOCATION
+/* Only set up codefilelinevec to store MiniFileLines if asmstream is active. */
+        codefilelinevec[codeveccnt] = (asmstream ?
+            BindAlloc(sizeof(*codefilelinevec[0]) * CODEVECSEGSIZE) :
+            DUFF_ADDR);
+#endif
 #endif // !NO_ASSEMBLER_OUTPUT
         codeandflagvec[codeveccnt] =
             (struct CodeAndFlag *) BindAlloc(sizeof(*codeandflagvec[0]));
@@ -594,7 +612,12 @@ void outcodewordaux(int32 w, int32 f, VoidStar aux)
     set_code_inst_(q,w);
     code_flag_(q) = (CodeFlag_t)f;
 #ifndef NO_ASSEMBLER_OUTPUT
-    if (asmstream) code_aux_(q) = aux;
+    if (asmstream) {
+        code_aux_(q) = aux;
+#if RECORD_SOURCE_LOCATION
+        code_fileline_set(q, fl);
+#endif
+    }
 #endif
     codep += 4;
 #else

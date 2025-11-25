@@ -80,6 +80,8 @@ static Symstr *fn_entry_sym, *fn_exit_sym;
 
 static int32 spareregs;
 
+static PendingOp* pendingop; // only valid if nested below show_inst_direct()
+
 static void cmp_integer(RealRegister r,int32 n,RealRegister workreg,int32 mask,int32 flags);
 static void cmn_integer(RealRegister r,int32 n,RealRegister workreg,int32 mask,int32 flags);
 static void load_integer(RealRegister r,int32 n,int32 flags);
@@ -397,6 +399,15 @@ static void outinstr(int32 w)
 {
     if ((unsigned32 )w >= (unsigned32)0xff000000L)
         syserr(syserr_outinstr, (long)w);
+#if RECORD_SOURCE_LOCATION
+    if (pendingop) {
+        MiniFileLine fl;
+        fl.f = pendingop->ic.f;
+        fl.l = pendingop->ic.l;
+        fl.column = pendingop->ic.column;
+        outcodeword_fl(w ^ condition_mask, LIT_OPCODE, &fl);
+    } else
+#endif
     outcodeword(w ^ condition_mask, LIT_OPCODE);
 }
 
@@ -420,6 +431,15 @@ static int32 outinstr3t(int32 w, Symstr *name, int xrflags, int32 tailcall)
 #endif
           w += ((d - (codebase+codep+8)) >> 2) & 0x00ffffff;
     }
+#if RECORD_SOURCE_LOCATION
+    if (pendingop) {
+        MiniFileLine fl;
+        fl.f = pendingop->ic.f;
+        fl.l = pendingop->ic.l;
+        fl.column = pendingop->ic.column;
+        outcodewordaux_fl(w ^ condition_mask, LIT_RELADDR, name, &fl);
+    } else
+#endif
     outcodewordaux(w ^ condition_mask, LIT_RELADDR, name);
     return d;
 }
@@ -1155,6 +1175,10 @@ void show_inst_direct(PendingOp *p)
     int32 peep = p->peep, dataflow = p->dataflow;
     RegisterUsage regusage;
     RegisterUsageFlags regflags = RU_ALL;
+
+#if RECORD_SOURCE_LOCATION
+    pendingop = p;
+#endif
 
     if (localcg_debug(4)) a_pr_jopcode(p);
     CheckJopcodeP(p, JCHK_MEM | JCHK_REGS | JCHK_SYSERR);
@@ -2681,6 +2705,10 @@ default:
 #endif
     if (illbits | peep)
         syserr(syserr_jop_mode, (long)op, (long)peep);
+
+#if RECORD_SOURCE_LOCATION
+    pendingop = 0;
+#endif
 }
 
 static Uint saved_fpreg_words;

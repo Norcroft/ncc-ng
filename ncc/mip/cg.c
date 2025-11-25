@@ -106,6 +106,10 @@ static SynBindList *binderise(SynBindList *l)
 
 static int32 max_icode, max_block;          /* statistics (lies, damn lies) */
 
+// current_fl is set mostly when cg_current_cmd is set, but can also be set
+// earlier and later for the prologues and epilogues.
+const FileLine *current_fl;
+
 static Cmd *cg_current_cmd;
 static int32 current_stackdepth;
 static BindList *local_binders, *regvar_binders;
@@ -2500,7 +2504,10 @@ static void cg_cmd(Cmd *x)
     {
         cg_current_cmd = x;
         if (cmdfileline_(x).f != 0)
-        {   /* This (outer) 'if' block could be a proc as appears below too */
+        {
+            current_fl = &cmdfileline_(x);
+
+            /* This (outer) 'if' block could be a proc as appears below too */
             if (!cg_infobodyflag)
             {
 #ifdef TARGET_HAS_PROFILE
@@ -2816,6 +2823,11 @@ case s_asm:
         break;         /* from loop */
     }
     cg_current_cmd = oldcmd;
+
+    if (cg_current_cmd == DUFF_ADDR)
+        current_fl = 0;
+    else
+        current_fl = &cmdfileline_(cg_current_cmd);
 }
 
 static void cg_test1(Expr *x, bool branchtrue, LabelNumber *dest)
@@ -6367,6 +6379,17 @@ void cg_topdecl(TopDecl *x, FileLine fl)
             int32 resrep, old_profile_option = 0;
             fl.p = dbg_notefileline(fl);
             currentfunction.fl = fl;
+
+            current_fl = body ? &cmdfileline_(body) : &currentfunction.fl;
+#if RECORD_SOURCE_LOCATION
+            // currentfunction records a FileLine, but it's the endproc's line.
+            // The dbg_proc debugger entry point is not called for functions
+            // which do not need to construct a frame.
+            currentfunction.start_fl.f = current_fl->f;
+            currentfunction.start_fl.l = current_fl->l;
+            currentfunction.start_fl.column = current_fl->column;
+#endif
+
 /* Object module generation may want to know if this module defines
    main() so that it can establish an entry point. Also while defining
    main() we should ensure that return; is mapped onto return 0;
@@ -6439,6 +6462,7 @@ void cg_topdecl(TopDecl *x, FileLine fl)
                 cc_warn(cg_warn_implicit_return, symname_(name));
 #endif
             /* we know here that fl.f != 0 */
+            current_fl = &fl;
             if (!cg_infobodyflag)
             {
 #ifdef TARGET_HAS_PROFILE

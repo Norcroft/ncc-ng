@@ -561,8 +561,25 @@ void emit(J_OPCODE op, VRegnum r1, VRegnum r2, int32 m)
     emitic(&ic);
 }
 
-void emitic(const Icode *const ic)
+static void do_emitic(const Icode *const ic);
+
+void emitic(Icode *ic)
 {
+#if RECORD_SOURCE_LOCATION
+    if (current_fl != 0) {
+        ic->f = current_fl->f;
+        ic->l = current_fl->l;
+        ic->column = current_fl->column;
+    }
+    do_emitic(ic);
+#else
+    do_emitic(ic);
+#endif
+}
+
+void do_emitic(const Icode *const ic)
+{
+
     if (deadcode) {
         if (!usrdbg(DBG_LINE) || usrdbg(DBG_OPT_DEAD)) return;
         start_new_basic_block(nextlabel());

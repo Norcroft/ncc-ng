@@ -296,6 +296,9 @@ static enum Feature const feature_flags[] = {
 /*yz */  Feature_EnumsAlwaysInt,    Feature_InlineCallKillsLinkReg
 };
 
+// features_flags maps from -f<char> to a FEATURE_ macro
+// This invertion table inverts the meaning of -f<char> to disable a flag if
+// it is on by default. This gives us an extra bit in the features bitmap.
 static bool const feature_flags_inverted[] = {
 /*abc*/  false /* Anomoly */,           false /*Verbose */,                false /* LimitedPCC */,
 /*def*/  false /*  -fd  */,             false /*6CharMonocase */,          true  /* SaveName */,
@@ -425,6 +428,18 @@ static int DoPredefine(void *arg, char const *name, char const *val) {
       pp_pragmavec[pragmachar-'a'] = value;
     }
   }
+  return 0;
+}
+
+static int SetLongForm(void *arg, char const *name, char const *val) {
+  IGNORE(arg);
+  if (name[0] == '.' && name[1] == '-' && name[2] == '-') {
+
+    if (strcmp(&name[3], "asm-includes-location") == 0) {
+      SetFeature(Feature_AsmIncludesLocation);
+    }
+  }
+
   return 0;
 }
 
@@ -701,6 +716,7 @@ static void set_compile_options(ToolEnv *t)
 
   toolenv_enumerate(t, SetFeatures, NULL);
   toolenv_enumerate(t, DoPredefine, NULL);
+  toolenv_enumerate(t, SetLongForm, NULL);
   Tool_OrderedEnvEnumerate(t, "-I.", AddInclude, NULL);
   if (TE_Count(t, "-J.") > 0) {
     ccom_flags &= ~FLG_INSTORE_FILES_IMPLICITLY;

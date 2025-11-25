@@ -277,6 +277,17 @@ typedef struct {
   } bin;
 } Int64Con;
 
+/* MiniFileLine structures are used to describe source file positions in
+ * support of detailed assembler output, and potentially debugger table
+ * generation. They are stored inside an Icode so want it to be smaller.
+ * Could become an anonymous member of FileLine, in C11...
+ */
+typedef struct {
+    const char *f;
+    unsigned16 l;
+    unsigned16 column;
+} MiniFileLine;
+
 /*
  * FileLine structures are used to describe source file positions and
  * in support of debugger table generation. Essentially, a FileLine can

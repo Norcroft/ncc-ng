@@ -112,7 +112,7 @@ extern void emitcasebranch(J_OPCODE op, VRegnum r1, LabelNumber **r2, int32 m);
 
 extern void emit(J_OPCODE op, VRegnum r1, VRegnum r2, int32 m);
 
-extern void emitic(const Icode *const ic);
+extern void emitic(Icode *ic);
 
 extern bool is_compare(J_OPCODE op);
 

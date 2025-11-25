@@ -301,13 +301,25 @@ struct Icode
  * rather than the unchecked arithmetic coding currently used?  This is not
  * the highest priority clean-up for me to worry about
  */
-  UPtr op, flags;
+  UPtr op;
   VRegInt r1, r2, r3, r4;
+#if RECORD_SOURCE_LOCATION
+  char const *f;     /* The source file name */
+  unsigned16 l;      /* Source file line number */
+  unsigned16 column; /* position within line */
+#endif
+  uint32 flags; // moved for tight packing, avoiding alloc limit on 64-bit host.
 };
 
-#define INIT_IC(ic,o) {(ic).op=(o);(ic).flags=0;(ic).r1.r=(ic).r2.r=(ic).r3.r=GAP;(ic).r4.r=0;}
-#define INIT_IC3(ic,o,R1,R2,R3) {(ic).op=(o);(ic).flags=0;(ic).r1=(R1);(ic).r2=(R2);(ic).r3=(R3);(ic).r4.r=0;}
-#define INIT_IC4(ic,o,R1,R2,R3,R4) {(ic).op=(o);(ic).flags=0;(ic).r1=(R1);(ic).r2=(R2);(ic).r3=(R3);(ic).r4.r=(R4);}
+#if RECORD_SOURCE_LOCATION
+#define INIT_FL(ic) (ic).f=0; (ic).l=0; (ic).column=0;
+#else
+#define INIT_FL(ic)
+#endif
+
+#define INIT_IC(ic,o) {(ic).op=(o);(ic).flags=0;(ic).r1.r=(ic).r2.r=(ic).r3.r=GAP;(ic).r4.r=0;INIT_FL(ic)}
+#define INIT_IC3(ic,o,R1,R2,R3) {(ic).op=(o);(ic).flags=0;(ic).r1=(R1);(ic).r2=(R2);(ic).r3=(R3);(ic).r4.r=0;INIT_FL(ic)}
+#define INIT_IC4(ic,o,R1,R2,R3,R4) {(ic).op=(o);(ic).flags=0;(ic).r1=(R1);(ic).r2=(R2);(ic).r3=(R3);(ic).r4.r=(R4);INIT_FL(ic)}
 
 #endif
 

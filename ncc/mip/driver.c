@@ -1836,6 +1836,9 @@ static KW const keytab[] = {
 #  ifdef RISCiX113
       {"-riscix1.2", KEY_RIX120, NULL, NULL},
 #  endif
+#if RECORD_SOURCE_LOCATION
+      {"--asm-includes-location", 0, ".--asm-includes-location", "=1" },
+#endif
 #endif /* PASCAL */
 };
 

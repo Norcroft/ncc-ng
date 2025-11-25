@@ -138,6 +138,9 @@
 #define TARGET_HAS_ASD
 #define TARGET_HAS_DWARF
 
+#define RECORD_SOURCE_LOCATION 1
+#define PRETTY_DISASSEMBLY 1
+
 #endif
 
 /* end of ccacorn/options.h */
