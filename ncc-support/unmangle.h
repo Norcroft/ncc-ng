@@ -23,5 +23,10 @@
 
 #include <stddef.h>
 
-const char* unmangle_class(const char* name, char *buf, size_t size);
-const char* unmangle2(const char* name, char *buf, size_t size);
+extern const char* unmangle_class(const char* name, char *buf, size_t size);
+extern const char* unmangle2(const char* name, char *buf, size_t size);
+extern const char* unmangle_with_class(const char* name,
+                                       const char* class_name,
+                                       size_t class_len,
+                                       char *buf,
+                                       size_t size);

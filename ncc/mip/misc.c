@@ -637,9 +637,9 @@ static void printsym_with_class(char const *format, Symstr const *sym,
 
 static void printclasssym(char const *format, Symstr const *sym)
 {   char const *name = sym == NULL ? "<no name>" : symname_(sym);
+    char buf[256];
     if (LanguageIsCPlusPlus)
-    {   char buf[256];
-        name = unmangle_class(name, buf, sizeof(buf));
+    {   name = unmangle_class(name, buf, sizeof(buf));
     }
     check_error_buffer(strlen(name));
     errprintf(format, name);
