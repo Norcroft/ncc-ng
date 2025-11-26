@@ -2971,7 +2971,7 @@ retry:  switch h0_(e)
     case s_valof:
 #endif
 #ifndef FORTRAN         /* re-instate something like this for f77 soon  */
-            if (suppress & D_LOWERINWIDER) xwarncount++;
+            if (SuppressDB_Has(Suppress_LowerInWider)) xwarncount++;
             else
                 cc_warn(sem_warn_low_precision, h0_(e));
 #endif
@@ -3317,7 +3317,7 @@ Expr *mktest(AEop opreason, Expr *a)
             return a;   /* type must be OK.  Args already done.  */
         case s_assign:
         case s_bitnot:
-            if (suppress & D_ASSIGNTEST) xwarncount++;
+            if (SuppressDB_Has(Suppress_AssignTest)) xwarncount++;
             else cc_warn(sem_warn_odd_condition, op);
             /* drop through */
         default:
@@ -3745,7 +3745,7 @@ case t_fnap:
         }
         if (h0_(a) == s_binder && bindstg_(exb_(a)) & b_impl)
         {   Binder *b = realbinder_(exb_(a));
-            if (!(suppress & D_CFRONTCALLER))
+            if (!SuppressDB_Has(Suppress_CFrontCaller))
                 cc_warn(sem_warn_addr_of_memfn, b);
             if (bindstg_(b) & b_memfna)
             {
@@ -3830,7 +3830,7 @@ static Expr *mkassign(AEop op, Expr *a, Expr *b)
     t1 = typeofexpr(a);  /* un-coerced type */
     t1x = princtype(t1);
 
-    if (!(suppress & D_STRUCTASSIGN)
+    if (!SuppressDB_Has(Suppress_StructAssign)
         && (mcrepoftype(t1x) & MCR_SORT_MASK) == MCR_SORT_STRUCT)
         cc_warn(sem_warn_structassign);
 
@@ -4407,7 +4407,7 @@ static Expr *pointercast(AEop op, Expr *e, TypeExpr *te, TypeExpr *tr)
             err = 0;
         else
             err = errq | 2;
-        if (err && !(suppress & D_IMPLICITCAST))
+        if (err && !SuppressDB_Has(Suppress_ImplicitCast))
         {   if (err & 2)
                 cc_pccwarn(sem_rerr_implicit_cast1, op);
             else if (LanguageIsCPlusPlus &&
@@ -4447,7 +4447,7 @@ static void check_narrowing_cast(AEop op, SET_BITMAP from, SET_BITMAP to)
             (from & bitoftype_(s_double)))
           /* any other ideas at what to moan at? */
          )
-    {   if (suppress & D_IMPLICITNARROWING) xwarncount++;
+    {   if (SuppressDB_Has(Suppress_ImplicitNarrowing)) xwarncount++;
         else cc_warn(sem_warn_narrowing, op);
     }
 }
@@ -4511,13 +4511,13 @@ case 0: /* not obviously permissible, check more */
                     yp = y;
                 if ((h0_(xp) == t_fnap) != (h0_(yp) == t_fnap))
                 {   if (op != s_cast)
-                    {   if (suppress & D_CAST)
+                    {   if (SuppressDB_Has(Suppress_Cast))
                             cc_warn(sem_warn_fn_cast, op);
                         else
                             cc_pccwarn(sem_warn_fn_cast, op);
                     }
                     else if (!( (HasFeature(Feature_PCC) || HasFeature(Feature_LimitedPCC)) ||
-                                   (suppress & D_IMPLICITCAST)))
+                                   SuppressDB_Has(Suppress_ImplicitCast)))
                         cc_warn(sem_warn_fn_cast, op);
 /* AM: the following reflects a bug (fix) in the interface aetree->cg.     */
 /* There is danger here if a local static array, or address of a local var */
@@ -4570,13 +4570,13 @@ case 0: /* not obviously permissible, check more */
 #else /* TARGET_IS_ALPHA */
             else if (isprimtypein_(y,bitoftype_(s_int)|bitoftype_(s_bool)))
             {   if (op != s_cast)
-                {   if (!(suppress & D_IMPLICITCAST))
+                {   if (!SuppressDB_Has(Suppress_ImplicitCast))
                         cc_pccwarn(sem_rerr_implicit_cast2, op);
                 }
             }
 #endif /* TARGET_IS_ALPHA */
             else
-            {   if (!(suppress & D_CAST)) {
+            {   if (!SuppressDB_Has(Suppress_Cast)) {
                   cc_err(sem_err_bad_cast, op, y);
                   return errornode;
                 }
@@ -4611,7 +4611,7 @@ case 0: /* not obviously permissible, check more */
                             cc_warn(sem_warn_pointer_int);
                         }
                         else
-                        {   if (!(suppress & D_IMPLICITCAST))
+                        {   if (!SuppressDB_Has(Suppress_ImplicitCast))
                                 cc_pccwarn(sem_rerr_implicit_cast3, op);
                         }
                         break;
@@ -4646,7 +4646,7 @@ case 0: /* not obviously permissible, check more */
                             cc_pccwarn(sem_err_bad_cast1, op, x);
                             break;
                         } else
-                        {   if (!(suppress & D_CAST)) {
+                        {   if (!SuppressDB_Has(Suppress_Cast)) {
                               cc_err(sem_err_bad_cast1, op, x);
                               return errornode;
                             }

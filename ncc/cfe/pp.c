@@ -2064,7 +2064,7 @@ static void pp_define(int pp_ch, bool noifdef)
                     || pp_hashnoargs_(p) != pp_hashnoargs_(q)
                     || (!pp_hashnoargs_(p) &&
                         !pp_eqarglist(pp_hasharglist_(p),pp_hasharglist_(q))))
-                {   if (suppress & D_MPWCOMPATIBLE)
+                {   if (SuppressDB_Has(Suppress_MPWCompatible))
                       cc_warn(pp_rerr_redefinition, pp_hashname_(p));
                     else
                       cc_pccwarn(pp_rerr_redefinition, pp_hashname_(p));
@@ -2337,7 +2337,7 @@ void pp_push_include(char const *fname, int lquote, FileLine fl)
   char const *hostname;
 
   if (lquote == '<' &&
-      !(HasFeature(Feature_PCC) || suppress & D_PPNOSYSINCLUDECHECK))
+      !(HasFeature(Feature_PCC) || SuppressDB_Has(Suppress_PPNoSysIncludeCheck)))
   {   static char const * const ansiheaders[] = {
             "assert.h", "ctype.h", "errno.h", "float.h", "iso646.h",
             "limits.h", "locale.h", "math.h", "setjmp.h", "signal.h",
@@ -2822,7 +2822,7 @@ static void pp_directive(void)
   {
       if (!(cpp_allows_junk &&
               (HasFeature(Feature_PCC) || HasFeature(Feature_LimitedPCC) ||
-               (suppress & D_PPALLOWJUNK))))
+               SuppressDB_Has(Suppress_PPAllowJunk))))
           cc_rerr(pp_rerr_junk_eol, v);
       pp_skip_linetokens(pp_ch);
   }
@@ -2881,7 +2881,7 @@ static int pp_process(void)
                   if (h == NULL || !pp_hashalive_(h))
                       cc_warn(pp_warn_guard_not_defined, pp_filestack->ifdefname);
                 }
-                else if (!(suppress & D_GUARDEDINCLUDE) &&
+                else if (!SuppressDB_Has(Suppress_GuardedInclude) &&
                          !fnameEQ(pp_fl->f, "assert.h"))
                   cc_warn(pp_warn_not_guarded);
               }

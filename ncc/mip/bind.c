@@ -534,7 +534,7 @@ static ScopeSaver pop_scope_1(int level, bool check_unrefd)
                 !(bindstg_(p) & b_pseudonym))
             {
                 if (sv == thissym)
-                {   if (!(suppress & D_UNUSEDTHIS))
+                {   if (!SuppressDB_Has(Suppress_UnusedThis))
                         cc_warn(bind_warn_unused_this_in_member);
                 }
                 else
@@ -1054,7 +1054,7 @@ TagBinder *instate_tagbinding(Symstr *sv, AEop s, TagDefSort defining,
                     defining != TD_NotDef &&
                     local_scope != 0 &&
                     !isgensym(sv) &&
-                    !(suppress & D_FUTURE))
+                    !SuppressDB_Has(Suppress_Future))
                     cc_warn(bind_warn_cpp_scope_differ, b);
             }
             else if (defining != TD_Decl && (tagbindbits_(b) & (TB_DEFD|TB_BEINGDEFD)))
@@ -1101,7 +1101,7 @@ TagBinder *instate_tagbinding(Symstr *sv, AEop s, TagDefSort defining,
                     implicit = 1;
                 else if (!LanguageIsCPlusPlus)
 /* @@@ the following can't be right for C compilers:  current_member_scope() is always NULL */
-                {   if (!isgensym(sv) && current_member_scope() != 0 && !(suppress & D_FUTURE))
+                {   if (!isgensym(sv) && current_member_scope() != 0 && !SuppressDB_Has(Suppress_Future))
                         cc_warn(bind_warn_cpp_scope_differ, b);
                     implicit = 1;
                 }
@@ -1420,7 +1420,7 @@ static void check_ansi_linkage(Binder *b, DeclRhsList *d)
                 oldstg = d->declstg & (b_implicitstg|bitofstg_(s_static)|bitofstg_(s_extern)|bitofstg_(s_weak));
 
 /* ECN - convert errors about different linkage types to warnings */
-            if (suppress & D_LINKAGE)
+            if (SuppressDB_Has(Suppress_Linkage))
               cc_warn(bind_rerr_linkage_disagreement,
                       d->declname, oldstg);
             else
@@ -1578,7 +1578,7 @@ static Binder *instate_declaration_1(DeclRhsList *d, int declflag)
             }
             switch (equivtype(bindtype_(b), d->decltype))
             {   default:
-                         if ((suppress & D_MPWCOMPATIBLE) &&
+                         if (SuppressDB_Has(Suppress_MPWCompatible) &&
                              widened_equivtype(b->bindtype, d->decltype))
                              /* f(char) incompatibility with f(int)     */
                              /* (or f(c) char c; {}) gets just a warning*/
@@ -2303,7 +2303,7 @@ void bind_cleanup(void)
                         /* @@@ check_for_imcomplete_tentative_defs()    */
                         /* does not unset b_undef for [] nor bss!       */
                         if (bindstg_(b) & b_fnconst)
-                        {   if (suppress & D_LINKAGE) /* @@@ this should probably be removed now */
+                        {   if (SuppressDB_Has(Suppress_Linkage)) /* @@@ this should probably be removed now */
                                 cc_warn(bind_err_undefined_static, b);
                             else
                                 cc_pccwarn(bind_err_undefined_static, b);

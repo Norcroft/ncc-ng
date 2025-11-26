@@ -229,7 +229,7 @@ static AEop make_integer(int32 radix, int32 flag)
                || (radix == 10 && (value & 0x80000000) && !(flag & NUM_UNSIGN))
                || (flag & NUM_LONGLONG)) {
         bool warned = false;
-        if (!(flag & NUM_LONGLONG) && !(suppress & D_LONGLONGCONST))
+        if (!(flag & NUM_LONGLONG) && !SuppressDB_Has(Suppress_LongLongConst))
         {   if (val64.hi & 0x80000000)
                 cc_warn(lex_warn_force_ulonglong, namebuf, namebuf);
             else
@@ -642,7 +642,7 @@ static void read_string(int quote, AEop type, bool lengthwanted)
                 cc_rerr(lex_rerr_empty_char);
             else if (n > sizeof_int)
                 cc_rerr(lex_rerr_overlong_char), n = sizeof_int;
-            else if (!(suppress & D_MULTICHAR))
+            else if (!SuppressDB_Has(Suppress_MultiChar))
                 cc_warn(lex_warn_multi_char);
             /* The following code follows pcc, and is host independent  */
             /* but assembles bytes 'backwards' on 68000-sex machines.   */
@@ -1271,7 +1271,7 @@ void lex_init()         /* C version  */
                 sym_insert(name, sym);
                 sym_name_table[sym] = name;
             }
-            if (LanguageIsCPlusPlus || !(suppress & D_FUTURE))
+            if (LanguageIsCPlusPlus || !SuppressDB_Has(Suppress_Future))
             {   for (u = 0; u < sizeof(ns3)/sizeof(ns3[0]); ++u)
                 {   const char *name = ns3[u].name; int32 sym = ns3[u].sym;
                     if (LanguageIsCPlusPlus)

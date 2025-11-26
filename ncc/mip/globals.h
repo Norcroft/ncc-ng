@@ -190,57 +190,19 @@ extern int cplusplus_flag;
 /*
  * disable error/warnings...
  */
-extern int32 suppress;
-#define D_IMPLICITCTOR          1L
-#define D_ASSIGNTEST            2L
-#define D_SHORTWARN             4L /* no longer used apparently */
-#define D_PPNOSYSINCLUDECHECK   8L
-#define D_IMPLICITVOID       0x10L
-#define D_VALOFBLOCKS        0x20L
-#define D_IMPLICITNARROWING  0x40L
-#define D_ACCESS             0x80L
-#define D_LONGFLOAT         0x100L
-#define D_IMPLICITVIRTUAL   0x200L
-#define D_STRUCTPADDING     0x400L
-#define D_LOWERINWIDER      0x800L
-#define D_GUARDEDINCLUDE   0x1000L
-
-/* These two are currently pragmas rather than bits in suppress. Why? */
-#define D_DEPRECATED       0x2000L
-#define D_IMPLICITFNS      0x4000L
-#define D_STRUCTASSIGN     0x8000L
-
-#ifdef PASCAL /*ECN*/
-#undef D_ASSIGNTEST
-#define D_ASSIGNTEST          (~0)
-#endif
-
-/* The following are used in some implementations to suppress ERRORS.   */
-/* Note: they partly duplicate the -FC (Feature_LimitedPCC) option.     */
-/* Note: suppressing errors makes the implementation non-conforming.    */
-#define D_ZEROARRAY       0x10000L
-#define D_PPALLOWJUNK     0x20000L
-#define D_IMPLICITCAST    0x40000L
-#define D_MPWCOMPATIBLE   0x80000L
-#define D_CAST           0x100000L /* Suppress errors about implicit casting of
-                                      pointer to A to pointer to B (A != B)
-                                    */
-#define D_LINKAGE        0x200000L /* ECN - Suppress errors about static/extern
-                                      linkage disagreements
-                                    */
-#define D_UNUSEDTHIS     0x400000L
-#define D_FUTURE         0x800000L /* suppress C++ keyword in C, etc. */
-#define D_CFRONTCALLER  0x1000000L /* warn about virtual fn calls, ptr to mem fns */
-#define D_MULTICHAR     0x2000000L /* warn about 'foo' */
-#define D_LONGLONGCONST 0x4000000L /* warn about 3000000000 being 3000000000ll */
-#define D_IMPLICITINT   0x8000000L /* no implicit int in C++ */
-
-/* warnings which are disabled by default */
-#ifndef D_SUPPRESSED
-#  define D_SUPPRESSED \
-  (D_SHORTWARN | D_STRUCTPADDING | D_GUARDEDINCLUDE | D_PPNOSYSINCLUDECHECK | \
-   D_IMPLICITCTOR | D_IMPLICITNARROWING | D_LOWERINWIDER | D_FUTURE | \
-   D_CFRONTCALLER | D_STRUCTASSIGN)
+#ifndef SUPPRESS_DEFAULT_LIST
+/* errors and warnings that are disabled by default */
+#define SUPPRESS_DEFAULT_LIST \
+    X(ShortWarn) \
+    X(StructPadding) \
+    X(GuardedInclude) \
+    X(PPNoSysIncludeCheck) \
+    X(ImplicitCtor) \
+    X(ImplicitNarrowing) \
+    X(LowerInWider) \
+    X(Future) \
+    X(CFrontCaller) \
+    X(StructAssign)
 #endif
 
 #ifdef PASCAL /*ECN*/

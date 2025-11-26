@@ -450,7 +450,7 @@ static Expr *check_arraysize(Expr *e)
 {   unsigned32 n;
     if (is_template_arg_binder(e)) return e;
     n = evaluate(e);
-    if (n == 0 && !(suppress & D_ZEROARRAY)) cc_pccwarn(syn_rerr_array_0);
+    if (n == 0 && !SuppressDB_Has(Suppress_ZeroArray)) cc_pccwarn(syn_rerr_array_0);
 /* The limit imposed here on array sizes is rather ARBITRARY, but char */
 /* arrays that consume over 16Mbytes seem silly at least in 1988/89!   */
     if (n > 0xffffff) cc_err(syn_err_arraysize, (long)n);
@@ -2686,8 +2686,8 @@ than annoying.  Probably we don't understand the reason for it.
     if (typesseen & bitoftype_(s_float))    /* normalise for rest of system */
     {   typesseen ^= (bitoftype_(s_float) ^ bitoftype_(s_double));
         if (typesseen & bitoftype_(s_long))
-        {   if (!(suppress & D_LONGFLOAT) && !HasFeature(Feature_PCC))
-             { suppress |= D_LONGFLOAT;
+        {   if (!SuppressDB_Has(Suppress_LongFloat) && !HasFeature(Feature_PCC))
+             { SuppressDB_Set(Suppress_LongFloat);
                cc_rerr(syn_rerr_long_float);
              }
             typesseen &= ~bitoftype_(s_long);
@@ -2761,7 +2761,7 @@ than annoying.  Probably we don't understand the reason for it.
 /* AM: the next line is really the wrong place to do this code (it      */
 /* should be in the loop above) since declaration specifiers may follow */
 /* the struct-specification.                                            */
-        if (contentdefseen && !(suppress & D_STRUCTPADDING)) {
+        if (contentdefseen && !SuppressDB_Has(Suppress_StructPadding)) {
             bool padded = NO;
             (void)sizeoftypenotepadding(t, &padded);
             if (padded) cc_warn(syn_warn_struct_padded, b);
@@ -3058,8 +3058,8 @@ static TypeExpr *fault_incomplete_type_object(TypeExpr *tt, Symstr *name,
     }
     /* @@@ pick up more [] cases (like auto, but not extern) below?     */
     if (h0_(t) == t_subscript && typesubsize_(t) == 0 && member && !(stg & bitofstg_(s_static)))
-    {   if (!(suppress & D_ZEROARRAY)) {
-            if (suppress & D_MPWCOMPATIBLE)
+    {   if (!SuppressDB_Has(Suppress_ZeroArray)) {
+            if (SuppressDB_Has(Suppress_MPWCompatible))
                 cc_warn(syn_rerr_open_member, name);
             else
                 cc_pccwarn(syn_rerr_open_member, name);
@@ -3330,8 +3330,8 @@ static TypeExpr *rd_typename(int declflag)
     ds = rd_declspec(declflag, 0);
                                  /*  TYPE_NEEDED and ~STGCLASS_OK       */
     if (ds.synflags & B_IMPLICITINT &&
-        (LanguageIsCPlusPlus || !(suppress & D_FUTURE)))
-    {   if (LanguageIsCPlusPlus && !(suppress & D_IMPLICITINT))
+        (LanguageIsCPlusPlus || !SuppressDB_Has(Suppress_Future)))
+    {   if (LanguageIsCPlusPlus && !SuppressDB_Has(Suppress_ImplicitInt))
             cc_rerr(syn_rerr_missing_type);
         else
             cc_warn(syn_rerr_missing_type);
@@ -4609,16 +4609,16 @@ anonu:      /* what a horrible place to put a label!                    */
             if (HasFeature(Feature_PCC) && !(declflag & MEMBER))
                 implicit_return_ok = syn_oldeformals;
             if (!(declsynflags & (B_TYPESEEN|B_STGSEEN)) ||
-                ((LanguageIsCPlusPlus || !(suppress & D_FUTURE)) &&
+                ((LanguageIsCPlusPlus || !SuppressDB_Has(Suppress_Future)) &&
                  (declsynflags & B_IMPLICITINT)))
             {   if (LanguageIsCPlusPlus)
                 {   if (cpp_special_member(d)) { /* nothing */ }
-                    else if (suppress & D_IMPLICITINT)
+                    else if (SuppressDB_Has(Suppress_ImplicitInt))
                         cc_warn(syn_warn_untyped_fn, d->declname);
                     else
                         cc_rerr(syn_warn_untyped_fn, d->declname);
                 }
-                else if (suppress & D_IMPLICITVOID)
+                else if (SuppressDB_Has(Suppress_ImplicitVoid))
                 {   xwarncount++;
 /* The next line allows us also to suppress 'implicit return' warning   */
 /* in f(){}.                                                            */
@@ -4713,7 +4713,7 @@ anonu:      /* what a horrible place to put a label!                    */
 /* C++: we might want to warn about more implicit int fns:              */
 /*      e.g. friend f(); virtual g(); static h();                       */
         if ((!(declsynflags & (B_TYPESEEN|B_STGSEEN)) ||
-             ((LanguageIsCPlusPlus || !(suppress & D_FUTURE)) &&
+             ((LanguageIsCPlusPlus || !SuppressDB_Has(Suppress_Future)) &&
               (declsynflags & B_IMPLICITINT))) &&
             !((declflag & FORMAL) && is_untyped_(d->decltype)) &&
             !HasFeature(Feature_PCC))
@@ -4747,7 +4747,7 @@ anonu:      /* what a horrible place to put a label!                    */
                             cc_warn(syn_warn_lacks_storage_type, x->declname);
                         else
 #endif /* CFRONT_MODE_WARN_LACKS_STORAGE_TYPE */
-                            if (suppress & D_IMPLICITINT)
+                            if (SuppressDB_Has(Suppress_ImplicitInt))
                                 cc_warn(syn_warn_lacks_storage_type, x->declname);
                             else
                                 cc_rerr(syn_warn_lacks_storage_type, x->declname);
@@ -4760,13 +4760,13 @@ anonu:      /* what a horrible place to put a label!                    */
                 }
             }
             if (!complained && have_needs_type && (declsynflags & B_IMPLICITINT))
-            {   if (LanguageIsCPlusPlus && !(suppress & D_IMPLICITINT))
+            {   if (LanguageIsCPlusPlus && !SuppressDB_Has(Suppress_ImplicitInt))
                 {   if (first_no_implict_int != NULL)
                         cc_rerr(syn_rerr_missing_type_for, first_no_implict_int);
                     else
                         cc_rerr(syn_rerr_missing_type);
                 }
-                else if (LanguageIsCPlusPlus || !(suppress & D_FUTURE))
+                else if (LanguageIsCPlusPlus || !SuppressDB_Has(Suppress_Future))
                 {   if (first_no_implict_int != NULL)
                         cc_warn(syn_rerr_missing_type_for, first_no_implict_int);
                     else

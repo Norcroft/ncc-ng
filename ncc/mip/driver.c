@@ -2430,6 +2430,8 @@ typedef struct {
 #define str(s) #s
 #define xstr(s) str(s)
 
+static ToolEdit_InsertStatus insert_suppress_defaults(ToolEnv *t);
+
 static EnvItem const builtin_defaults[] = {
   {".bytesex", BYTESEX_DEFAULT_STR},
 #if defined(CPLUSPLUS)
@@ -2439,31 +2441,7 @@ static EnvItem const builtin_defaults[] = {
 #else
   {".lang",    "=-ansi"},
 #endif
-#if (D_SUPPRESSED & D_IMPLICITCAST)
-  {".Ec",      "=-Ec"},
-#else
-  {".Ec",      "=-E+c"},
-#endif
-#if (D_SUPPRESSED & D_PPALLOWJUNK)
-  {".Ep",      "=-Ep"},
-#else
-  {".Ep",      "=-E+p"},
-#endif
-#if (D_SUPPRESSED & D_ZEROARRAY)
-  {".Ez",      "=-Ez"},
-#else
-  {".Ez",      "=-E+z"},
-#endif
-#if (D_SUPPRESSED & D_CAST)
-  {".Ef",      "=-Ef"},
-#else
-  {".Ef",      "=-E+f"},
-#endif
-#if (D_SUPPRESSED & D_LINKAGE)
-  {".El",      "=-El"},
-#else
-  {".El",      "=-E+l"},
-#endif
+
 #ifdef TARGET_WANTS_FUNCTION_NAMES
   {".ff",      "=-f+f"},
 #else
@@ -2471,94 +2449,6 @@ static EnvItem const builtin_defaults[] = {
 #endif
   {".fa",      "=-f+a"},
   {".fv",      "=-f+v"},
-#if (D_SUPPRESSED & D_ASSIGNTEST)
-  {".Wa",      "=-Wa"},
-#else
-  {".Wa",      "=-W+a"},
-#endif
-#if (D_SUPPRESSED & D_DEPRECATED)
-  {".Wd",      "=-Wd"},
-#else
-  {".Wd",      "=-W+d"},
-#endif
-#if (D_SUPPRESSED & D_IMPLICITFNS)
-  {".Wf",      "=-Wf"},
-#else
-  {".Wf",      "=-W+f"},
-#endif
-#if (D_SUPPRESSED & D_GUARDEDINCLUDE)
-  {".Wg",      "=-Wg"},
-#else
-  {".Wg",      "=-W+g"},
-#endif
-#if (D_SUPPRESSED & D_LOWERINWIDER)
-  {".Wl",      "=-Wl"},
-#else
-  {".Wl",      "=-W+l"},
-#endif
-#if (D_SUPPRESSED & D_IMPLICITNARROWING)
-  {".Wn",      "=-Wn"},
-#else
-  {".Wn",      "=-W+n"},
-#endif
-#if (D_SUPPRESSED & D_MULTICHAR)
-  {".Wm",      "=-Wm"},
-#else
-  {".Wm",      "=-W+m"},
-#endif
-#if (D_SUPPRESSED & D_LONGLONGCONST)
-  {".Wo",      "=-Wo"},
-#else
-  {".Wo",      "=-W+o"},
-#endif
-#if (D_SUPPRESSED & D_PPNOSYSINCLUDECHECK)
-  {".Wp",      "=-Wp"},
-#else
-  {".Wp",      "=-W+p"},
-#endif
-#if (D_SUPPRESSED & D_STRUCTPADDING)
-  {".Ws",      "=-Ws"},
-#else
-  {".Ws",      "=-W+s"},
-#endif
-#if (D_SUPPRESSED & D_FUTURE)
-  {".Wu",      "=-Wu"},
-#else
-  {".Wu",      "=-W+u"},
-#endif
-#if (D_SUPPRESSED & D_IMPLICITVOID)
-  {".Wv",      "=-Wv"},
-#else
-  {".Wv",      "=-W+v"},
-#endif
-#if (D_SUPPRESSED & D_STRUCTASSIGN)
-  {".Wz",      "=-Wz"},
-#else
-  {".Wz",      "=-W+z"},
-#endif
-
-#ifdef CPLUSPLUS
-#  if (D_SUPPRESSED & D_CFRONTCALLER)
-  {".Wc",      "=-Wc"},
-#  else
-  {".Wc",      "=-W+c"},
-#  endif
-#  if (D_SUPPRESSED & D_IMPLICITCTOR)
-  {".Wi",      "=-Wi"},
-#  else
-  {".Wi",      "=-W+i"},
-#  endif
-#  if (D_SUPPRESSED & D_IMPLICITVIRTUAL)
-  {".Wr",      "=-Wr"},
-#  else
-  {".Wr",      "=-W+r"},
-#  endif
-#  if (D_SUPPRESSED & D_UNUSEDTHIS)
-  {".Wt",      "=-Wt"},
-#  else
-  {".Wt",      "=-W+t"},
-#  endif
-#endif
 
   {".-Isearch","=-f+k"},
   {"-O",       "=mix"},
@@ -2615,6 +2505,7 @@ int toolenv_insertdefaults(ToolEnv *t) {
     ToolEdit_InsertStatus rc = tooledit_insert(t, p->name, p->val);
     if (rc == TE_Failed) return 1;
   }
+  if (insert_suppress_defaults(t) == TE_Failed) return 1;
   { int argc = 0;
     char **argp;
     for (argp = driver_options; *argp != NULL; ++argp) argc++;
@@ -2638,6 +2529,78 @@ int toolenv_insertdefaults(ToolEnv *t) {
     cc_default_env = toolenv_copy(t);
   }
   return rc;
+}
+
+static bool is_builtin_suppressed(enum Suppress s) {
+    switch (s) {
+#define X(NAME) case Suppress_##NAME:
+        SUPPRESS_DEFAULT_LIST
+#undef X
+            return true;
+
+        default:
+            return false;
+    };
+}
+
+// As with toolenv_insertdefaults() above, this loops through all entries
+// of its suppression array. It has the same number of entries as those
+// removed from builtin_defailts[], but stores both possible strings. The only
+// difference in the loop is that, for each entry, it calls to
+// is_builtin_suppressed() to determine which of the strings to pass to toolenv.
+static ToolEdit_InsertStatus insert_suppress_defaults(ToolEnv *t)
+{
+    const struct {
+        enum Suppress entry;
+        const char *name, *onVal, *offVal;
+    } list[] = {
+#define ENTRY(TYPE, LETTER, NAME) { Suppress_ ## NAME, "." #TYPE #LETTER, "=-" #TYPE #LETTER, "=-" #TYPE "+" #LETTER }
+        // This list is the list SDT2.11a used in builtin_defaults[] for default
+        // warning and error suppressions set at compile time via the
+        // SUPPRESS_DEFAULT_LIST define (previously D_SUPPRESSED). It's a subset
+        // of the full character mappings (ie. -E<c> and -W<c>) in compiler.c.
+        //
+        // Only these entries end up in the toolenv (which was shared between
+        // ARM's tools), but that doesn't necessarily matter - any suppression
+        // listed in SUPPRESS_DEFAULT_LIST will still be disabled for this
+        // compiler instance as that's handled elsewhere.
+        //
+        // Note that builtin_defaults[] still contains entries for -ff, -fa
+        // and -fv, which can not override the settings in the toolenv.
+        //
+        // Each entry contains both possible values to pass to toolenv, with the
+        // chosen one determined when looping. Each expands to something like:
+        //    "{ Suppress_ImplicitCast, ".Ec", "=-Ec", "=-E+c" }
+        ENTRY(E, c, ImplicitCast),
+        ENTRY(E, f, Cast),
+        ENTRY(E, l, Linkage),
+        ENTRY(E, p, PPAllowJunk),
+        ENTRY(E, z, ZeroArray),
+
+        ENTRY(W, a, AssignTest),
+        ENTRY(W, d, Deprecated),
+        ENTRY(W, f, ImplicitFns),
+        ENTRY(W, g, GuardedInclude),
+        ENTRY(W, l, LowerInWider),
+        ENTRY(W, n, ImplicitNarrowing),
+        ENTRY(W, m, MultiChar),
+        ENTRY(W, o, LongLongConst),
+        ENTRY(W, p, PPNoSysIncludeCheck),
+        ENTRY(W, s, StructPadding),
+        ENTRY(W, u, Future),
+        ENTRY(W, v, ImplicitVoid),
+        ENTRY(W, z, StructAssign),
+#undef ENTRY
+        { Suppress_MAX, 0, 0, 0 }
+    }, *p = list;
+
+    for (; p->name != NULL; p++) {
+        const char* val = is_builtin_suppressed(p->entry) ? p->onVal : p->offVal;
+        ToolEdit_InsertStatus rc = tooledit_insert(t, p->name, val);
+        if (rc == TE_Failed) return 1;
+    }
+
+    return TE_OK;
 }
 
 /* End of driver.c */

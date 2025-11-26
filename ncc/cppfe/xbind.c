@@ -388,7 +388,7 @@ static Binder *instate_member_binder(DeclRhsList *d /*, int bindflg*/)
         {   if (!equivtype(t, bindtype_(inheritb)))
                 cc_rerr(xbind_rerr_inherited_type_differs, inheritb);
             if (!(stg & (bitofstg_(s_virtual)|b_generated))
-                && !(suppress & D_IMPLICITVIRTUAL))
+                && !SuppressDB_Has(Suppress_ImplicitVirtual))
                 cc_warn(xbind_warn_implicit_virtual, parent, d->declname);
             stg |= bitofstg_(s_virtual);
 /* Conspire with syn.c(MEMFNBITS) to suppress 'unused this' warnings:   */

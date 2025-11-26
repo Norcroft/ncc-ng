@@ -268,20 +268,23 @@ extern char _etoa[];
 /*
  * Disable warning messages.
  */
-
-static int32 const warning_flags[] = {
-/*abcd*/ D_ASSIGNTEST,  0,                      D_CFRONTCALLER, D_DEPRECATED,
-/*efgh*/ 0,             D_IMPLICITFNS,          D_GUARDEDINCLUDE, 0,
-/*ijkl*/ D_IMPLICITCTOR,0,                      0,              D_LOWERINWIDER,
-/*mnop*/ D_MULTICHAR,   D_LOWERINWIDER|D_IMPLICITNARROWING, D_LONGLONGCONST,  D_PPNOSYSINCLUDECHECK,
-/*qrst*/ 0,             D_IMPLICITVIRTUAL,      D_STRUCTPADDING,D_UNUSEDTHIS,
-/*uvwx*/ D_FUTURE,      D_IMPLICITVOID,         0,              0,
-/*yz  */ 0,             D_STRUCTASSIGN
+// Suppress_MAX is unused or complicated:
+// 'n' has multiple values. 'd' and 'f' use the pragma db.
+static enum Suppress const warning_flags[] = {
+/*abc*/ Suppress_AssignTest,            Suppress_MAX,           Suppress_CFrontCaller,
+/*def*/ Suppress_Deprecated /*'d'*/,    Suppress_MAX,           Suppress_ImplicitFns /*'f'*/,
+/*ghi*/ Suppress_GuardedInclude,        Suppress_MAX,           Suppress_ImplicitCtor,
+/*jkl*/ Suppress_MAX,                   Suppress_MAX,           Suppress_LowerInWider,
+/*mno*/ Suppress_MultiChar,             Suppress_MAX /*'n'*/,   Suppress_LongLongConst,
+/*pqr*/ Suppress_PPNoSysIncludeCheck,   Suppress_MAX,           Suppress_ImplicitVirtual,
+/*stu*/ Suppress_StructPadding,         Suppress_UnusedThis,    Suppress_Future,
+/*vwx*/ Suppress_ImplicitVoid,          Suppress_MAX,           Suppress_MAX,
+/*yz */ Suppress_MAX,                   Suppress_StructAssign
 };
 
-// Note that Feature_Max is used to flag unused or used by a different
+// Note that Feature_MAX is used to flag unused or used by a different
 // config option (eg. -fd and -fx set ccom_flags and suppress).
-static enum Features const feature_flags[] = {
+static enum Feature const feature_flags[] = {
 /*abc*/  Feature_Anomoly,           Feature_Verbose,                Feature_LimitedPCC,
 /*def*/  Feature_MAX, /* -fd */     Feature_6CharMonocase,          Feature_SaveName,
 /*ghi*/  Feature_MAX, /* UNUSED */  Feature_Predeclare,             Feature_UserIncludeListing,
@@ -294,15 +297,15 @@ static enum Features const feature_flags[] = {
 };
 
 static bool const feature_flags_inverted[] = {
-/*abc*/  false /*Feature_Anomoly*/,             false /*Feature_Verbose*/,                false /*Feature_LimitedPCC*/,
-/*def*/  false /* -fd */,                       false /*Feature_6CharMonocase*/,          true  /*Feature_SaveName*/,
-/*ghi*/  false /* UNUSED */,                    false /*Feature_Predeclare*/,             false /*Feature_UserIncludeListing*/,
-/*jkl*/  false /*Feature_SysIncludeListing*/,   false /*Feature_KandRInclude*/,           false /*Feature_DontUseLinkReg*/,
-/*mno*/  false /*Feature_PPNoUse*/,             false /*Feature_SaveName*/,               false /*Feature_WarnOldFns*/,
-/*pqr*/  false /*Feature_TellPtrInt*/,          false /*Feature_AllowCountedStrings*/,    false /*Feature_LetLongjmpCorruptRegVars*/,
-/*stu*/  false /*Feature_Annotate*/,            false /*Feature_ReverseBitfields*/,       false /*Feature_UnexpandedListing*/,
-/*vwx*/  false /*Feature_NoUse*/,               false /*Feature_WRStrLits*/,              false /* -fx */,
-/*yz */  false /*Feature_EnumsAlwaysInt*/,      false /*Feature_InlineCallKillsLinkReg*/
+/*abc*/  false /* Anomoly */,           false /*Verbose */,                false /* LimitedPCC */,
+/*def*/  false /*  -fd  */,             false /*6CharMonocase */,          true  /* SaveName */,
+/*ghi*/  false /*  UNUSED  */,          false /*Predeclare */,             false /* UserIncludeListing */,
+/*jkl*/  false /* SysIncludeListing */, false /*KandRInclude */,           false /* DontUseLinkReg */,
+/*mno*/  false /* PPNoUse */,           false /*SaveName */,               false /* WarnOldFns */,
+/*pqr*/  false /* TellPtrInt */,        false /*AllowCountedStrings */,    false /* LetLongjmpCorruptRegVars */,
+/*stu*/  false /* Annotate */,          false /*ReverseBitfields */,       false /* UnexpandedListing */,
+/*vwx*/  false /* NoUse */,             false /*WRStrLits */,              false /* -fx */,
+/*yz */  false /* EnumsAlwaysInt */,    false /*InlineCallKillsLinkReg */
 };
 
 static int32 ClearOrSet(int32 val, int32 bits, bool clear) {
@@ -328,43 +331,54 @@ static int SetFeatures(void *arg, char const *name, char const *val) {
         var_warn_deprecated = on;
       else if (ch == 'f')
         var_warn_implicit_fns = on;
-      else
-        suppress = ClearOrSet(suppress, warning_flags[ASCII(ch) - ASCII('a')], on);
+      else if (ch == 'n') {
+        // Special-case '-fn' as the table can no longer hold multiple values.
+        SuppressDB_ClearOrSet(Suppress_ImplicitNarrowing, on);
+        SuppressDB_ClearOrSet(Suppress_LowerInWider, on);
+      } else {
+        enum Suppress w = warning_flags[ASCII(ch) - ASCII('a')];
+        if (w != Suppress_MAX) {
+            SuppressDB_ClearOrSet(w, on);
+        }
+      }
     }
 #ifdef DISABLE_ERRORS
     else if (name[1] == 'E') {
-      int32 new_suppress = 0;
       switch (ch) {
-      case 'c': new_suppress = D_IMPLICITCAST;   break;
-      case 'm': new_suppress = D_MPWCOMPATIBLE | D_PPALLOWJUNK | D_ZEROARRAY
-                               | D_PPNOSYSINCLUDECHECK | D_MULTICHAR;
-                Features_ClearOrSet(Feature_AllowCountedStrings, on);
+      case 'c': SuppressDB_ClearOrSet(Suppress_ImplicitCast, on);   break;
+      case 'm': SuppressDB_ClearOrSet(Suppress_MPWCompatible, on);
+                SuppressDB_ClearOrSet(Suppress_PPAllowJunk, on);
+                SuppressDB_ClearOrSet(Suppress_ZeroArray, on);
+                SuppressDB_ClearOrSet(Suppress_PPNoSysIncludeCheck, on);
+                SuppressDB_ClearOrSet(Suppress_MultiChar, on);
+                FeaturesDB_ClearOrSet(Feature_AllowCountedStrings, on);
                                                  break;
-      case 'p': new_suppress = D_PPALLOWJUNK;    break;
+      case 'p': SuppressDB_ClearOrSet(Suppress_PPAllowJunk, on);    break;
 #ifdef EXTENSION_VALOF
-      case 'v': new_suppress = D_VALOFBLOCKS;    break;
+      case 'v': SuppressDB_ClearOrSet(Suppress_ValOfBlocks, on);    break;
 #endif
-      case 'z': new_suppress = D_ZEROARRAY;      break;
-      case 'f': new_suppress = D_CAST;           break;  /* Force casts */
-      case 'l': new_suppress = D_LINKAGE;        break;
-      case 'a': new_suppress = D_ACCESS;         break;
-      case 'i': new_suppress = D_IMPLICITINT;         break;
+      case 'z': SuppressDB_ClearOrSet(Suppress_ZeroArray, on);      break;
+      case 'f': SuppressDB_ClearOrSet(Suppress_Cast, on);           break;  /* Force casts */
+      case 'l': SuppressDB_ClearOrSet(Suppress_Linkage, on);        break;
+      case 'a': SuppressDB_ClearOrSet(Suppress_Access, on);         break;
+      case 'i': SuppressDB_ClearOrSet(Suppress_ImplicitInt, on);    break;
       }
-      suppress = ClearOrSet(suppress, new_suppress, on);
     }
 #endif
     else if (name[1] == 'f') {
-      if (ch == 'x')
-        suppress &= ~D_SUPPRESSED;
-      else if (ch == 'd') {
+      if (ch == 'x') {
+#define X(name) SuppressDB_Clear(Suppress_##name);
+        SUPPRESS_DEFAULT_LIST
+#undef X
+      } else if (ch == 'd') {
         ccom_flags = ccom_flags | FLG_USE_SYSTEM_PATH;
       } else {
-        enum Features flag = feature_flags[ASCII(ch) - ASCII('a')];
+        enum Feature flag = feature_flags[ASCII(ch) - ASCII('a')];
         if (flag != Feature_MAX) {
           if (feature_flags_inverted[ASCII(ch) - ASCII('a')])
-            Features_ClearOrSet(flag, !on);
+            FeaturesDB_ClearOrSet(flag, !on);
           else
-            Features_ClearOrSet(flag, on);
+            FeaturesDB_ClearOrSet(flag, on);
         }
       }
     }
@@ -697,9 +711,9 @@ static void set_compile_options(ToolEnv *t)
   if ((val = toolenv_lookup(t, "-ZS")) != NULL) system_flavour = &val[1];
   if ((val = toolenv_lookup(t, "-zj")) != NULL) config |= CONFIG_INDIRECT_SETJMP;
   if ((val = toolenv_lookup(t, ".schar")) != NULL)
-    Features_ClearOrSet(Feature_SignedChar, val[3] == '+');
+    FeaturesDB_ClearOrSet(Feature_SignedChar, val[3] == '+');
   if ((val = toolenv_lookup(t, ".areaperfn")) != NULL)
-    Features_ClearOrSet(Feature_AOFAreaPerFn, val[3] == '+');
+    FeaturesDB_ClearOrSet(Feature_AOFAreaPerFn, val[3] == '+');
 #ifndef NO_DUMP_STATE
   if ((val = toolenv_lookup(t, "-zgw")) != NULL) { compiledheader = &val[1]; dump_state |= DS_Dump; }
   if ((val = toolenv_lookup(t, "-zgr")) != NULL) { compiledheader = &val[1]; dump_state |= DS_Load; }
@@ -1149,8 +1163,8 @@ extern int ccom(ToolEnv *t, char const *infile, char const *outfile,
   rtcheck  = 0;
 #endif
 
-  Features_ClearAll();
-  suppress = 0;
+  FeaturesDB_ClearAll();
+  SuppressDB_InitDefaults();
 
 #ifndef NO_CONFIG
   config_init(t);

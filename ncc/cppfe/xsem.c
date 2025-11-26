@@ -658,7 +658,7 @@ static Expr *mkfnap_cpp(Expr *e, ExprList **l, bool *curried, Expr **let_, Expr 
         (bindstg_(thisvtab) & bitofstg_(s_typedef)) ? bindtype_(thisvtab) : thist),
                                     (ClassMember *)vtabsym);
 
-                if (!(suppress & D_CFRONTCALLER))
+                if (!SuppressDB_Has(Suppress_CFrontCaller))
                     cc_warn(sem_warn_virtual, b);
 #ifdef TARGET_HAS_DATA_VTABLES
                 if (target_has_data_vtables) {
@@ -925,7 +925,7 @@ static Expr *cpp_ptrcast(AEop op, Expr *e, TypeExpr *te, TypeExpr *tr,
         return pointercast(op, e, te, tr);             /* same as for C */
     }
 
-    if (err && !(suppress & D_IMPLICITCAST))
+    if (err && !SuppressDB_Has(Suppress_ImplicitCast))
     {   if (err & 2)
             cc_rerr(sem_rerr_implicit_cast1, op);
         else
@@ -1218,7 +1218,7 @@ static Expr *cpp_mkcast(AEop op, Expr **ep, TypeExpr *tr)
     /* run-time and doesn't alwyas require init.                        */
                 attributes_(b) |= A_DYNINIT;
                 if (op != s_cast)
-                {   if (suppress & D_IMPLICITCTOR) xwarncount++;
+                {   if (SuppressDB_Has(Suppress_ImplicitCtor)) xwarncount++;
                     else
                         /* see the discussion in [ES, p272]             */
                         cc_warn(sem_warn_implicit_constructor, x);

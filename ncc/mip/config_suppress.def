@@ -1,0 +1,56 @@
+// Comments largely from the old globals.h.
+//
+// Few notes:
+// ShortWarn is not in any currently available code, but retained for now.
+// Deprecated and ImplicitFns are defined but never used. The -Fd and -Ff
+// command line flags are (and were) converted to pragmas before any
+// suppression lookup. Setting them as builtin suppressions will (and did) fail.
+
+// C and C++ warnings
+SUPPRESS(AssignTest)
+SUPPRESS(ShortWarn)             // no longer used apparently
+SUPPRESS(ImplicitVoid)
+SUPPRESS(ImplicitNarrowing)
+SUPPRESS(LongFloat)
+SUPPRESS(StructPadding)
+SUPPRESS(LowerInWider)          // Lower precision in wider context
+SUPPRESS(Deprecated)            // These two are currently pragmas rather than bits in suppress. Why?
+SUPPRESS(ImplicitFns)           // These two are currently pragmas rather than bits in suppress. Why?
+SUPPRESS(StructAssign)
+
+// Preprocessor warnings
+SUPPRESS(PPNoSysIncludeCheck)
+SUPPRESS(GuardedInclude)        // Guarded against multiple include
+
+// C++ warnings
+SUPPRESS(ImplicitCtor)
+SUPPRESS(Access)
+SUPPRESS(ImplicitVirtual)
+SUPPRESS(UnusedThis)
+SUPPRESS(Future)                // suppress C++ keyword in C, etc.
+SUPPRESS(CFrontCaller)          // warn about virtual fn calls, ptr to mem fns
+SUPPRESS(MultiChar)             // warn about 'foo'
+SUPPRESS(LongLongConst)         // warn about 3000000000 being 3000000000ll
+SUPPRESS(ImplicitInt)           // no implicit int in C++
+
+// BCPL (!) warning
+SUPPRESS(ValOfBlocks)
+
+// Errors:
+// Note: they partly duplicate the -FC (Feature_LimitedPCC) option.
+// Note: suppressing errors makes the implementation non-conforming.
+SUPPRESS(ZeroArray)
+SUPPRESS(PPAllowJunk)
+SUPPRESS(ImplicitCast)          // Sometimes error, sometimes warning.
+SUPPRESS(MPWCompatible)
+SUPPRESS(Cast)                  // Implicit casting of ptr A to ptr B where A != B
+SUPPRESS(Linkage)               // ECN - Suppress errors about static/extern linkage disagreements
+
+// Pascal
+// This was in the original globals.h. In the currently available code,
+// Suppress_AssignTest (aka D_ASSIGNTEST) is only used in the C front-end, so
+// it's unclear what this is intended to do.
+#ifdef PASCAL /*ECN*/
+#undef D_ASSIGNTEST
+#define D_ASSIGNTEST          (~0)
+#endif

@@ -280,7 +280,7 @@ static void rd_dtor(TagBinder *scope)
 
 void diagnose_access(Symstr *sv, TagBinder *scope)
 {   accessOK |= 4;      /* prevent multiple diagnoses of the same token */
-    if (suppress & D_ACCESS)
+    if (SuppressDB_Has(Suppress_Access))
         cc_warn(sem_rerr_nonpublic, scope, sv);
     else
         cc_rerr(sem_rerr_nonpublic, scope, sv);

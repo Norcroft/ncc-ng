@@ -72,9 +72,17 @@
 #    define CHAR_NL 13 /* as MPW C '\n' */
 #    define CHAR_CR 10 /* as MPW C '\r' */
 #    define CFRONT_MODE_WARN_LACKS_STORAGE_TYPE 0
-#    define D_SUPPRESSED (D_SHORTWARN | D_STRUCTPADDING | D_PPNOSYSINCLUDECHECK | \
-                          D_IMPLICITCTOR | D_LOWERINWIDER | D_CFRONTCALLER | \
-                          D_MULTICHAR | D_STRUCTASSIGN)
+
+#define SUPPRESS_DEFAULT_LIST \
+    X(ShortWarn) \
+    X(StructPadding) \
+    X(PPNoSysIncludeCheck) \
+    X(ImplicitCtor) \
+    X(LowerInWider) \
+    X(CFrontCaller) \
+    X(MultiChar) \
+    X(StructAssign) \
+
 #    define HOST_DOESNT_WANT_FP_OFFSET_TABLES 1
 #    ifndef COMPILING_ON_MACINTOSH /* ifdef HOST_FILENAMES_ARE_CASE_SENSISTIVE */
 #      define RETRY_INCLUDE_LOWERCASE
