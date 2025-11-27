@@ -221,24 +221,37 @@ static AEop make_integer(int32 radix, int32 flag)
      */
     overflow = I64_UToI(&value, &val64) != i64_ok;
     if (HasFeature(Feature_Fussy)) {
+        // Error if 32-bit overflow and pedantic. Should be C89 only, not later.
         if (!overflow_warned && overflow) {
             cc_err(lex_err_ioverflow, namebuf);
             overflow_warned = YES;
         }
+        // Modern compilers consider this a warning in pedantic mode, and the
+        // following 'else' should be removed. But that will alter generation
+        // behaviour so avoid for now.
     } else if (overflow
                || (radix == 10 && (value & 0x80000000) && !(flag & NUM_UNSIGN))
                || (flag & NUM_LONGLONG)) {
         bool warned = false;
-        if (!(flag & NUM_LONGLONG) && !SuppressDB_Has(Suppress_LongLongConst))
+        // Warn if the constant doesn't fit in 32-bits, but does in 64-bits.
+        // No modern compiler warns here, unless in pedantic C89 mode.
+        // For now, this can not be hit due to Fussy being checked above, but
+        // it's future-proof if strict mode becomes warnings rather than errors.
+        if (!(flag & NUM_LONGLONG) &&
+            HasFeature(Feature_Fussy) &&
+            !SuppressDB_Has(Suppress_LongLongConst))
         {   if (val64.hi & 0x80000000)
                 cc_warn(lex_warn_force_ulonglong, namebuf, namebuf);
             else
                 cc_warn(lex_warn_force_longlong, namebuf, namebuf);
             warned = true;
         }
-        if (val64.hi & 0x80000000)
+
+        if (!(flag & NUM_UNSIGN) && (val64.hi & 0x80000000))
         {   flag |= NUM_UNSIGN;
-            if (!warned)
+            // Warn if the signed base-10 constant is too large to fit in a
+            // signed 64-bit so converted to unsigned. Matches gcc & clang.
+            if (!warned && radix == 10)
                 cc_warn(lex_warn_force_ulonglong, namebuf, namebuf);
         }
         curlex.a1.i64 = mkint64const(flag ^ (NUM_LONGLONG|NUM_SHORT|NUM_LONG), (int64 *)&val64);
