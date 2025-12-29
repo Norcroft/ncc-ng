@@ -1,7 +1,5 @@
 # Norcroft Makefile
 #
-# Outputs to: ../build/{bin,obj,derived}
-#
 # Options are:
 #   make ncc [<options>]       	# C compiler (ARM backend)
 #   make n++ [<options>]    	# C++ compiler (ARM backend)
@@ -21,6 +19,9 @@
 # RISC OS native compilers first build a suitable RISC OS cross compiler,
 # which then builds the native compiler.
 
+# Binaries are built in ./bin
+# Object files are built in ./build
+
 # config toggles ----------------
 TARGET      ?= arm          # arm | riscos | riscos26 | newton
 WARN        ?= minimal      # some | minimal | none
@@ -30,12 +31,13 @@ HOST    	?=              # riscos | <blank>
 
 # layout (this Makefile sits immediately above ncc/)
 SRC_ROOT     := ncc
-OUT_ROOT     := build
-DERIVED_ROOT := $(OUT_ROOT)/derived
+BUILD_DIR    := build
+DERIVED_ROOT := $(BUILD_DIR)/derived
 
 .SECONDARY:
 
 BIN_DIR     := bin
+LIB_DIR	    := lib
 
 # toolchain - this is overwritten if HOST=riscos
 CC          ?= cc
@@ -103,7 +105,7 @@ BACKEND ?= $(if $(filter ntcc nt++,$(BUILD_TOOL)),thumb,arm)
 BACKEND_DIR := $(SRC_ROOT)/$(BACKEND)
 
 DERIVED_DIR := $(DERIVED_ROOT)/$(TARGET)/$(BACKEND)
-OBJ_DIR     := $(OUT_ROOT)/obj/$(TARGET)$(OBJ_FLAVOUR)/$(BACKEND)
+OBJ_DIR     := $(BUILD_DIR)/obj/$(TARGET)$(OBJ_FLAVOUR)/$(BACKEND)
 
 # warnings --------------
 # Minimal changes are made to the source code, but on a modern compiler that
@@ -156,11 +158,11 @@ ifneq (,$(filter riscos riscos26,$(TARGET)))
     ifeq ($(TARGET),riscos26)
       # 26-bit RISC OS: APCS-3, 26-bit, unaligned loads rotate
       CFLAGS += -apcs 3/26bit -za0
-      STUBS_LIB := lib/stubs-26.a
+      STUBS_LIB := $(LIB_DIR)/stubs-26.a
     else
       # 32-bit RISC OS: APCS-3, 32-bit, FPE3, no unaligned loads.
       CFLAGS += -apcs 3/32bit/fpe3 -za1
-      STUBS_LIB := lib/stubs.a
+      STUBS_LIB := $(LIB_DIR)/stubs.a
     endif
 
     LDLIBS := $(STUBS_LIB)
@@ -325,7 +327,7 @@ endif
 # ---- Host tools (built for and run on the build host regardless of TARGET)
 CC_HOST       ?= cc
 CFLAGS_HOST   ?= -O2 -std=gnu89 -fcommon -fno-strict-aliasing $(WFLAGS)
-HOSTTOOLS_DIR := $(OUT_ROOT)/hosttools
+HOSTTOOLS_DIR := $(BUILD_DIR)/hosttools
 GENHDRS_HOST  := $(HOSTTOOLS_DIR)/genhdrs
 PEEPGEN_HOST  := $(HOSTTOOLS_DIR)/peepgen
 
@@ -514,7 +516,7 @@ DEPS := $(NCC_OBJS:.o=.d) \
 
 # hygiene ------------------------
 clean:
-	$(RM) -r $(OUT_ROOT)/obj $(BIN_DIR)
+	$(RM) -r $(BUILD_DIR)/obj $(BIN_DIR)
 
 distclean: clean
 	$(RM) -r $(DERIVED_ROOT) $(HOSTTOOLS_DIR)
