@@ -1229,12 +1229,19 @@ static void instruction_copy_info(const Icode *ic)
         case J_INITF:
         case J_INITD:
             break;
+#ifdef TARGET_IS_ARM
+        case J_MOVFDR:
+            /* FPA can treat MOVFDR as copy-like */
+            /* VFP can't as it's a conversion. */
+            if (fpuIsVFP()) {
+                set_valnr(ic->r1.r);
+                break;
+            }
+            /* else fall through to copy_valnr (FPA) */
+#endif
         case J_MOVR:
         case J_MOVFR:
         case J_MOVDR:
-#ifdef TARGET_IS_ARM
-        case J_MOVFDR:
-#endif
             copy_valnr(ic->r1.r, ic->r3.r);
             break;
         case J_LDRV:
@@ -1692,7 +1699,7 @@ static void collect_register_clashes(BlockHead *p)
 /* r1 and r2 to clash - indeed the very opposite is true.                */
                 if (op==J_MOVR || op==J_MOVFR || op==J_MOVDR
 #ifdef TARGET_IS_ARM
-                   || op==J_MOVFDR
+                   || (op==J_MOVFDR && !fpuIsVFP())
 #endif
                    )
                     s1 = set_register_copy(ic->r1.r, s1, ic->r3.r);

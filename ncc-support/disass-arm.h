@@ -15,7 +15,7 @@
 
 extern char *append_str(char *p, const char *s);
 
-typedef enum { RegType_Core, RegType_FPA } RegType;
+typedef enum { RegType_Core, RegType_FPA, RegType_VFP_D, RegType_VFP_S } RegType;
 extern char *append_reg(char *p, unsigned r, RegType type);
 extern char *append_core_reg(char *p, unsigned r);
 extern char *append_immediate(char *p, unsigned32 imm);

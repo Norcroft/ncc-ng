@@ -308,7 +308,7 @@ int EnumerateProcessors(ProcessorEnumProc *f, void *arg);
 
 void target_lib_variant(char *b);
 
-typedef enum { fpu_fpa, fpu_amp } FPU_Type;
+typedef enum { fpu_fpa, fpu_amp, fpu_vfp } FPU_Type;
 extern FPU_Type fpu_type;
 
 #endif /* JOPCODEDEF_ONLY */

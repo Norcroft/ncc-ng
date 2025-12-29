@@ -40,6 +40,37 @@ typedef struct {
   char const *val;
 } EnvItem;
 
+bool fpuIsVFP() {
+    return fpu_type == fpu_vfp;
+}
+
+// Return the number of float 'arg' registers.
+int32 numFloatArgRegs()
+{
+    if (fpu_type == fpu_vfp)
+        return 8;
+
+    return 4;
+}
+
+// Return the number of float 'var' registers.
+int32 numFloatVarRegs()
+{
+    if (fpu_type == fpu_vfp)
+        return 7;
+
+    return 4;
+}
+
+// Return the alignment of literals.
+int32 alignOfLiteral()
+{
+    if (fpu_type == fpu_vfp)
+        return 8;
+
+    return 4;
+}
+
 #define str(s) #s
 #define xstr(s) str(s)
 
@@ -275,6 +306,7 @@ static kw const pcs_keywords[] = {
     { "reent",          "-apcs.reent",  "#/reent" },
     { "nonreent",       "-apcs.reent",  "#/noreent"},
     { "noreent",        "-apcs.reent",  "#/noreent"},
+    { "vfp",            "-apcs.fpis",   "#/vfp"},
     { "fpe3",           "-apcs.fpis",   "#/fpe3"},
     { "fpe2",           "-apcs.fpis",   "#/fpe2"},
     { "swstackcheck",   "-apcs.swst",   "#/swst"},
@@ -357,6 +389,9 @@ KW_Status mcdep_keyword(char const *key, char const *nextarg, ToolEnv *t) {
             return KW_OKNEXT;
         } else if (cistreq(nextarg, "amp")) {
             tooledit_insert(t, "-fpu", "#amp");
+            return KW_OKNEXT;
+        } else if (cistreq(nextarg, "vfp")) {
+            tooledit_insert(t, "-fpu", "#vfp");
             return KW_OKNEXT;
         }
         return KW_BADNEXT;
@@ -524,7 +559,13 @@ void config_init(ToolEnv *t)
             pcs_flags |= pcs_opts[i].flag;
 
     {   char const *fpuname = toolenv_lookup(t, "-fpu");
-        fpu_type = (StrEq(fpuname, "#amp")) ? fpu_amp : fpu_fpa;
+        if (StrEq(fpuname, "#vfp")) {
+            fpu_type = fpu_vfp;
+        } else if (StrEq(fpuname, "#amp")) {
+            fpu_type = fpu_amp;
+        } else {
+            fpu_type = fpu_fpa;
+        }
     }
     dbg_setformat(toolenv_lookup(t, ".debugtable"));
 
@@ -954,7 +995,8 @@ static bool OverlargeMemOffset(const Icode *ic)
         return ic->r3.i < -maxoffset || ic->r3.i > maxoffset;
 }
 
-
+// Return which register are read/written/corrupted when generating
+// this instruction. See struct RealRegUse.
 void RealRegisterUse(const Icode *ic, RealRegUse *u)
 {
     uint32 use = 0, def = 0, c_in = 0, c_out = 0;
@@ -1161,6 +1203,31 @@ void RealRegisterUse(const Icode *ic, RealRegUse *u)
             }
             break;
 
+        // VFP corrupts ip to generate -0.0f or -0.0f.
+        case J_MOVFK:
+        case J_ADDFK: case J_SUBFK:
+        case J_RSBFK: case J_MULFK:
+        case J_DIVFK: case J_RDVFK:
+            if (fpu_type == fpu_vfp && ic->r3.f->floatbin.fb.f == 0) {
+                c_in = regbit(R_IP);
+                c_out = regbit(R_IP);
+            }
+            break;
+
+        // VFP corrupts ip to generate -0.0 or -0.0.
+        case J_MOVDK:
+        case J_ADDDK: case J_SUBDK:
+        case J_RSBDK: case J_MULDK:
+        case J_DIVDK: case J_RDVDK:
+            if (fpu_type == fpu_vfp &&
+                (ic->r3.f->floatbin.db.msd & 0x7fffffff) == 0 &&
+                ic->r3.f->floatbin.db.lsd == 0)
+            {
+                c_in = regbit(R_IP);
+                c_out = regbit(R_IP);
+            }
+            break;
+
         default:
             break;
     }
@@ -1236,10 +1303,10 @@ char *CheckJopcodeP(const PendingOp *p, CheckJopcode_flags flags)
             errmsg = "corrupted deadbits";
         /* Consistency check on physical register numbers */
         fault = NO;
-        if (a_uses_r1(p) && (uint32)p->ic.r1.rr >= 24) fault = YES;
-        if (a_uses_r2(p) && (uint32)p->ic.r2.rr >= 24) fault = YES;
-        if (a_uses_r3(p) && (uint32)p->ic.r3.rr >= 24) fault = YES;
-        if (a_uses_r4(p) && (uint32)p->ic.r4.rr >= 24) fault = YES;
+        if (a_uses_r1(p) && (uint32)p->ic.r1.rr >= 32) fault = YES;
+        if (a_uses_r2(p) && (uint32)p->ic.r2.rr >= 32) fault = YES;
+        if (a_uses_r3(p) && (uint32)p->ic.r3.rr >= 32) fault = YES;
+        if (a_uses_r4(p) && (uint32)p->ic.r4.rr >= 32) fault = YES;
         if (fault)
             errmsg = "illegal register number";
         if (GetRegisterUsage(p, &u))

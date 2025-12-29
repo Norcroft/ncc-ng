@@ -18,6 +18,11 @@
 #include "ampdis.h"
 #include "disass.h"
 #include "disass-arm.h"
+#include "disass-fpa.h"
+
+#if TARGET_HAS_VFP
+#include "disass-vfp.h"
+#endif
 
 #include <ctype.h>
 #include <stdio.h>
@@ -165,6 +170,10 @@ static const char *regname(unsigned r, RegType type)
 
     if (type == RegType_FPA)
         prefix = 'f';
+    else if (type == RegType_VFP_D)
+        prefix = 'd';
+    else if (type == RegType_VFP_S)
+        prefix = 's';
 
     // no snprintf in old C libs.
     sprintf(buf, "%c%u", prefix, r);

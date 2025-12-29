@@ -19,6 +19,7 @@
 #include "disass.h"
 #include "disass-arm.h"
 #include "disass-fpa.h"
+#include "disass-vfp.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -504,12 +505,17 @@ void disass(uint64_t w, uint64_t oldq, const char* buf, void *cb_arg, dis_cb_fn 
     /* Default: show raw word as data. */
     sprintf(out, "DCD      %s%.8lX", g_hexprefix, (unsigned long)instr);
 
-#if TARGET_IS_ARM
+#if TARGET_HAS_VFP
+    // Try VFP/NEON disassembler for coprocessor 10/11 encodings.
+    if (disass_vfp(instr, pc, cb_arg, cb, out)) {
+        return;
+    }
+#endif
+
     // Try obsolete FPA/FPE disassembler for CP1/CP2 encodings.
     if (disass_fpa(instr, pc, cb_arg, cb, out)) {
         return;
     }
-#endif
 
     /* BLX (immediate) – shares the branch encoding space but is unconditional.
        For now, leave it as DCD instead of mis-decoding as BLNV. */

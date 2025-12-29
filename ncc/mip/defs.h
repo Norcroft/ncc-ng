@@ -101,8 +101,16 @@ typedef IPtr VRegnum;          /* a pity this has to be here, but... */
 #define NMAGICREGS  NINTREGS
 #define NANYARGREGS NARGREGS
 #else
-#define NMAGICREGS  (NINTREGS+NFLTREGS)
-#define NANYARGREGS (NARGREGS+NFLTARGREGS)
+#  ifdef MAXFLTARGREGS
+#    define NMAGICREGS  (NINTREGS+MAXFLTARGREGS)
+#  else
+#    define NMAGICREGS  (NINTREGS+NFLTREGS)
+#  endif
+#  ifdef MAXFLTVARREGS
+#    define NANYARGREGS (NARGREGS+MAXFLTVARREGS)
+#  else
+#    define NANYARGREGS (NARGREGS+NFLTARGREGS)
+#  endif
 #endif
 
 typedef struct RealRegSet

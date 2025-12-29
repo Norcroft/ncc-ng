@@ -59,6 +59,9 @@
 #include "ampops.h"
 #include "ampdis.h"
 
+#include "gen.h"
+#include "vfp.h"
+
 unsigned integer_load_max;
 unsigned ldm_regs_max;
 
@@ -104,21 +107,6 @@ static void routine_saveregs(int32 m);
 static void routine_exit(int32 condition,bool to_pc,int32 spadjust);
 static void killipvalue(RealRegister r);
 static int32 LSBits(int32 mask, int n);
-
-
-typedef enum {
-  UseFP,
-  UseSP_Adjust,
-  UseSP_NoAdjust
-} FP_RestoreBase;
-
-typedef struct {
-  void (*show)(PendingOp const *p);
-  void (*calleesave)(int32 mask);
-  int32 (*restoresize)(int32 mask);
-  void (*calleerestore)(int32 mask, int32 condition, FP_RestoreBase base, int32 offset);
-  void (*saveargs)(int32);
-} FP_Gen;
 
 static FP_Gen const *fp_gen;
 
@@ -949,8 +937,6 @@ static void ldm_c_flush(int32 regbits, int32 setscond) {
 #ifdef TARGET_HAS_DATA_VTABLES
 #define LABREF_WORD32 0x03000000
 #endif
-
-struct DispDesc { int32 u_d, m; RealRegister r; };
 
 static void bigdisp(struct DispDesc *x, int32 m, int32 mask, RealRegister r2r)
 {   int32 w, modm;
@@ -5290,7 +5276,9 @@ void branch_round_literals(LabelNumber *m)
     condition_mask = c;
 }
 
-static struct { char *name; Symstr const *sym; int32 op; } inlinetable[] = {
+static struct InlineTable *inlinetable;
+
+static struct InlineTable inlinetable_fpa[] = {
 #ifdef FORTRAN
     {"__r_sqrt", 0, OP_CPOP | CPDO_SINGLE | F_SQT},
     {"__r_exp",  0, OP_CPOP | CPDO_SINGLE | F_EXP},
@@ -5321,6 +5309,12 @@ static struct { char *name; Symstr const *sym; int32 op; } inlinetable[] = {
 static void initinlinetable(void)
 {
     int i;
+
+    if (fpu_type == fpu_vfp)
+        inlinetable = inlinetable_vfp;
+    else
+        inlinetable = inlinetable_fpa;
+
     for (i = 0; ; i++) {
         char *name = inlinetable[i].name;
         if (name == NULL) return;
@@ -5378,12 +5372,19 @@ void mcdep_init(void)
     if (fpu_type == fpu_amp) {
       fp_gen = &amp_gen;
       disass_addcopro(AMP_DisassCP);
-      saved_fpreg_words = 1;
+      saved_fpreg_words = 1; // size of float
       fp_arg_words = 1;
+    } else if (fpu_type == fpu_vfp) {
+        fp_gen = &vfp_gen;
+        // Our simple, and non-standard procedure call 'standard',
+        // only uses every second S register. This allows any register
+        // to contain a float or double.
+        saved_fpreg_words = 2; // size of double
+        fp_arg_words = 2; // size of double
     } else {
       fp_gen = &fpa_gen;
-      saved_fpreg_words = 3;
-      fp_arg_words = 2;
+      saved_fpreg_words = 3; // size of extended double
+      fp_arg_words = 2; // size of double
     }
     lib_reloc_sym = sym_insert_id("_Lib$Reloc$Off");
     mod_reloc_sym = sym_insert_id("_Mod$Reloc$Off");
@@ -5439,6 +5440,65 @@ void localcg_tidy(void)
 {
     dbg_finalise();
     peephole_tidy();
+}
+
+// Export some locals for use in vfp.c -----------------------------------------
+void arm_addressability(int32 n)
+{
+    addressability(n);
+}
+
+void arm_ldm_flush(void) {
+    ldm_flush();
+}
+
+void arm_outinstr(int32 w) {
+    outinstr(w);
+}
+
+void arm_fpdesc_notespchange(int32 n) {
+    fpdesc_notespchange(n);
+}
+
+void arm_out_ldm_instr(uint32 w) {
+    out_ldm_instr(w);
+}
+
+void arm_adjustipvalue(RealRegister r1, RealRegister r2, int32 k) {
+    adjustipvalue(r1, r2, k);
+}
+
+void arm_KillKnownRegisterValues(uint32 mask) {
+    KillKnownRegisterValues(mask);
+}
+
+void arm_bigdisp(struct DispDesc *x, int32 m, int32 mask, RealRegister r2r) {
+    bigdisp(x, m, mask, r2r);
+}
+
+int32 arm_intsavewordsbelowfp() {
+    return intsavewordsbelowfp;
+}
+
+int32 arm_realargwordsbelowfp() {
+    return realargwordsbelowfp;
+}
+
+void arm_gen_add_integer(RealRegister r1, RealRegister r2, int32 n, int32 flags) {
+    add_integer(r1, r2, n, flags);
+}
+
+void outinstr_vfp_simd(int32 w)
+{
+    if (condition_mask != C_ALWAYS)
+        syserr(syserr_outinstr, (long)w);
+
+    outcodeword(w, LIT_OPCODE);
+}
+
+bool is_condition_always()
+{
+    return condition_mask == C_ALWAYS;
 }
 
 /* End of section arm/gen.c */

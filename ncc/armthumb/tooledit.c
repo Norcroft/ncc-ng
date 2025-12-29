@@ -101,7 +101,7 @@ static EnvValImplies const fpr_vals[] = { {"#/fpregargs", fpr_implies}, {"#/nofp
 static EnvValImplies const fp_vals[] = { {"#/fp", fp_implies}, {"#/nofp", nofp_implies}, {NULL, NULL} };
 static EnvValImplies const b32_vals[] = { {"#/32", b32_implies}, {"#/26", b26_implies}, {NULL, NULL} };
 static EnvValImplies const fpis_vals[] = { {"#/fpe3", NULL}, {"#/fpe2", NULL}, {NULL, NULL} };
-static EnvValImplies const fpu_vals[] = { {"#fpa", NULL}, {"#amp", amp_implies}, {NULL, NULL} };
+static EnvValImplies const fpu_vals[] = { {"#fpa", NULL}, {"#amp", amp_implies}, {"#vfp", NULL}, {NULL, NULL} };
 #endif
 static EnvValImplies const ec_vals[] = { {"=-Ec", NULL}, {"=-E+c", NULL}, {NULL, NULL} };
 static EnvValImplies const ef_vals[] = { {"=-Ef", NULL}, {"=-E+f", NULL}, {NULL, NULL} };

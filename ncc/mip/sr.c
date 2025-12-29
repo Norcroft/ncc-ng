@@ -832,7 +832,12 @@ static SR_Binder *LookupBinder(Binder *b) {
 }
 
 static SR_Binder *AddDef(Binder *b, BlockHead *block, int32 ic) {
-  SR_Binder *sr = LookupBinder(b);
+  /* Handle gaps in function arg's register allocation, from padding doubles */
+  SR_Binder *sr;
+  if (b == NULL)
+    return NULL;
+
+  sr = LookupBinder(b);
   if (sr != NULL) {
     unsigned32 n = defcount++;
     SR_Def *p = NewSyn(SR_Def);

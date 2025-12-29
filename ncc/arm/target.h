@@ -113,9 +113,43 @@ extern bool arm_shiftop_allowed(int32 n, int32 m, int32 signedness, int32 op);
 #  define CONST_DATA_IN_CODE 1
 #endif
 
+#define TARGET_HAS_VFP 1
+
+extern bool fpuIsVFP();
+extern int32 alignOfLiteral();
+extern int32 numFloatArgRegs();
+extern int32 numFloatVarRegs();
+
+#if TARGET_HAS_VFP
+// alignof_double causes problems in lots of places. The stack isn't currently
+// aligned on entry to to a function (might be fixable but I've not found how),
+// but if we're called from non-VFP code with different alignment, it won't be
+// aligned and will possibly crash. I think it's only useful if every file is
+// compiled with VFP (plus the stack bug above fixed).
+// With it on, VFP code is written aligned to arg registers so, when pushed to
+// the stack, are spaced correctly, if it were aligned.
+// #define alignof_double 8
+#  define alignof_literal alignOfLiteral()
+
+// These need to be maximums, with dynamic settings, so the same compiler
+// binary can be used to generate either FPA and FPE code or, indeed, for
+// different variants of VFP.
+#  define FP_CONFIGURATION_OVERRIDE
+
+#  define ALLOCATION_ORDER    {0,1,2,3, 12,14, 4,5,6,7,8,9,10,11, \
+                             16,17,18,19, 20,21,22,23, \
+                             24,25,26,27, 28,29,30,31, \
+                             255}
+#endif
+
 #define NINTREGS       16L  /* same as smallest fp reg, usually R_F0 */
-#define NFLTARGREGS     4L
-#define NFLTVARREGS     4L
+#define NFLTARGREGS     numFloatArgRegs()
+#define NFLTVARREGS     numFloatVarRegs()
+
+// Maximum number of float regs, used for array allocations only.
+#define MAXFLTARGREGS   8
+#define MAXFLTVARREGS   8
+
 #define R_FV1           (R_F0+NFLTARGREGS)
 #define MAXGLOBFLTREG   4L
 
@@ -132,9 +166,11 @@ extern bool arm_shiftop_allowed(int32 n, int32 m, int32 signedness, int32 op);
    that SL and FP (sometimes var regs) are contiguous with the var regs.
  */
 
+#ifndef FP_CONFIGURATION_OVERRIDE
 #define ALLOCATION_ORDER    {0,1,2,3, 12,14, 4,5,6,7,8,9,10,11, \
                              16,17,18,19, 20,21,22,23, \
                              255}
+#endif
 #define R_IP                0xcL    /* temp + used in call (nb not necessarily a real register number) */
 #define R_SP                0xdL    /* main stack pointer */
 #define R_LR                0xeL    /* link addr in fn calls or work reg */

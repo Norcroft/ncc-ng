@@ -558,9 +558,9 @@ static void obj_writedata(DataInit *p)
             /* sex-reversed if required to be - obj_fwrite() only reverses  */
             /* items of length 4... This is a trap for the unwary.          */
             while (rpt-- != 0)
-            {   obj_fwrite(&(fc->floatbin.db.msd), 4, 1, objstream);
+            {   obj_fwrite(&(fc->floatbin.db.lsd), 4, 1, objstream);
                 if (len == 4) continue;
-                obj_fwrite(&(fc->floatbin.db.lsd), 4, 1, objstream);
+                obj_fwrite(&(fc->floatbin.db.msd), 4, 1, objstream);
             }
           }
           break;

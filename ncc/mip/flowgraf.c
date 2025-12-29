@@ -2078,12 +2078,18 @@ case J_MOVK:                       /* I.e. the pseudo_uses_r2() ops      */
         }
         break;
 /* AM: there seems no rationale behind which insts have the realreg test! */
+#ifdef TARGET_IS_ARM                         /* see regalloc.c, armgen.c */
+case J_MOVFDR:                               /* see regalloc.c, armgen.c */
+        // An FPA register contains a value that can be used as any precision
+        // without conversion, so the optimise comment below applies.
+        // A VFP register contains a result that is the precision set by the
+        // instruction that wrote into it so needs converting.
+        if (fpuIsVFP())
+            break;
+#endif
 case J_MOVR:
 case J_MOVDR:
 case J_MOVFR:
-#ifdef TARGET_IS_ARM                         /* see regalloc.c, armgen.c */
-case J_MOVFDR:                               /* see regalloc.c, armgen.c */
-#endif
         /* optimize away moves from a register to itself.                */
         /* Also lose moves into virtual registers (which may be a side-  */
         /* effect of the optimiser trying to allocate local vars to regs */

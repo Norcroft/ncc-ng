@@ -565,9 +565,9 @@ void display_assembly_code(Symstr const *name)
             NoteLiteralLabel(q);
             {   char *s = (char *)aux;
                 if (*s != '<') {
-                    fprintf(as, "DCFS     %s", s);
+                    fprintf(as, "DCFS            %s    @ 0x%.8lx", s, lx_arg(w));
                 } else {
-                    fprintf(as, "DCD      0x%.8lx", lx_arg(w));
+                    fprintf(as, "DCD             0x%.8lx", lx_arg(w));
                 }
             }
             break;
@@ -575,9 +575,10 @@ void display_assembly_code(Symstr const *name)
             NoteLiteralLabel(q);
             {   char *s = (char *)aux;
                 if (*s != '<') {
-                    fprintf(as, "DCFD     %s", s);
+                    fprintf(as, "DCFD            %s    @ 0x%.8lx, 0x%.8lx",
+                            s, lx_arg(w), lx_arg(code_inst_(q+4)));
                 } else {
-                    fprintf(as, "DCD      0x%.8lx, 0x%.8lx",
+                    fprintf(as, "DCD             0x%.8lx, 0x%.8lx",
                                 lx_arg(w), lx_arg(code_inst_(q+4)) );
                 }
             }

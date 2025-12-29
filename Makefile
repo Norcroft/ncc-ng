@@ -302,13 +302,20 @@ SUPPORT_SRCS += ncc-support/int64-runtime.c
 endif
 
 ifeq ($(BACKEND),arm)
-SUPPORT_SRCS += ncc-support/disass-fpa.c ncc-support/disass-arm.c
+SUPPORT_SRCS += \
+ ncc-support/disass-fpa.c \
+ ncc-support/disass-arm.c \
+ ncc-support/disass-vfp.c \
+ ncc-support/vfp.c
 endif
 
 ifeq ($(BACKEND),thumb)
 SUPPORT_SRCS += ncc-support/disass-thumb.c
 ifeq ($(BUILD_TOOL), nt++)
-SUPPORT_SRCS += ncc-support/disass-arm.c
+SUPPORT_SRCS += \
+ ncc-support/disass-fpa.c \
+ ncc-support/disass-arm.c \
+ ncc-support/disass-vfp.c
 endif
 endif
 
