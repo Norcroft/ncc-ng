@@ -13,15 +13,22 @@
  * limitations under the License.
  */
 
-extern char *emit_mnemonic(char *p, const char *mnem, unsigned cond);
 extern char *append_str(char *p, const char *s);
 
 typedef enum { RegType_Core, RegType_FPA } RegType;
 extern char *append_reg(char *p, unsigned r, RegType type);
 extern char *append_core_reg(char *p, unsigned r);
 extern char *append_immediate(char *p, unsigned32 imm);
+extern char *append_immediate_s(char *p, unsigned32 imm, bool sign);
 
+extern char *emit_mnemonic(char *p, const char *mnem, unsigned cond);
 extern char *emit_mnemonic_with_suffix(char *p,
                                        const char *base,
                                        const char *suffix,
                                        unsigned cond);
+
+extern char *emit_mnemonic_with_suffix2(char *p,
+                                        const char *base,
+                                        const char *suffix1,
+                                        const char *suffix2,
+                                        unsigned cond);

@@ -93,6 +93,15 @@ char *emit_mnemonic_with_suffix(char *p,
                                 const char *suffix,
                                 unsigned cond)
 {
+    return emit_mnemonic_with_suffix2(p, base, suffix, NULL, cond);
+}
+
+char *emit_mnemonic_with_suffix2(char *p,
+                                 const char *base,
+                                 const char *suffix1,
+                                 const char *suffix2,
+                                 unsigned cond)
+{
     int len = 0;
     const char *s;
 
@@ -118,8 +127,18 @@ char *emit_mnemonic_with_suffix(char *p,
     }
 
     /* Optional suffix, e.g. ".F64" or ".F64.S32". */
-    if (suffix && *suffix) {
-        for (s = suffix; *s != '\0'; ++s) {
+    if (suffix1 && *suffix1) {
+        for (s = suffix1; *s != '\0'; ++s) {
+            char ch = *s;
+            if (!disass_upper_mnemonics)
+                ch = (char)tolower((unsigned char)ch);
+            *p++ = ch;
+            ++len;
+        }
+    }
+
+    if (suffix2 && *suffix2) {
+        for (s = suffix2; *s != '\0'; ++s) {
             char ch = *s;
             if (!disass_upper_mnemonics)
                 ch = (char)tolower((unsigned char)ch);
@@ -209,8 +228,19 @@ char *append_core_reg(char *p, unsigned r)
 
 char *append_immediate(char *p, unsigned32 imm)
 {
+    return append_immediate_s(p, imm, true);
+}
+
+char *append_immediate_s(char *p, unsigned32 imm, bool sign)
+{
+    int n;
+
     /* Always print immediates in hex with the configured prefix. */
-    int n = sprintf(p, "#%s%X", g_hexprefix, (unsigned int)imm);
+    if (sign)
+        n = sprintf(p, "#%s%x", g_hexprefix, imm);
+    else
+        n = sprintf(p, "#-%s%x", g_hexprefix, imm);
+
     return p + n;
 }
 
@@ -395,7 +425,6 @@ static void disass_single_data_transfer(unsigned32 instr,
     p = append_str(p, ", ");
 
     if (imm) {
-        /* Register offset – for now, keep it simple and just show Rm. */
         unsigned rm = BITS(instr, 3, 0);
         if (pbit) {
             p = append_str(p, "[");
@@ -417,13 +446,12 @@ static void disass_single_data_transfer(unsigned32 instr,
 
         /* PC-relative literal load/store – let the callback resolve to a label. */
         if (rn == 15 && cb != NULL) {
-            int32 soff = (int32)off;
-            if (!ubit) soff = -soff;
-            {
-                int32 t = (int32)pc + 8 + soff;
-                dis_cb_type type = lbit ? D_LOADPCREL : D_STOREPCREL;
-                p = cb(type, soff, (unsigned32)t, (int)instr, cb_arg, p);
-            }
+            int32 soff = ubit ? (int32)off : -(int32)off;
+            unsigned32 addr = (int32)pc + 8 + soff;
+
+            dis_cb_type type = lbit ? D_LOADPCREL : D_STOREPCREL;
+            cb(type, soff, addr, (int)instr, cb_arg, p);
+
             return;
         }
 
