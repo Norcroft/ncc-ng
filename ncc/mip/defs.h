@@ -962,6 +962,9 @@ typedef struct TopDecl {        /* a top-level decalration */
           SynBindList *formals; /* its formal argument list... */
           Cmd  *body;           /* its body... */
           bool ellipsis;        /* and whether the argument list ends '...' */
+#ifdef TARGET_IS_INTERPRETER
+          Binder *structresult; /* hidden __struct_result binder for struct-return fns */
+#endif
         } fn;                   /* h0 = s_fndef => fn definition */
     } v_f;
 } TopDecl;

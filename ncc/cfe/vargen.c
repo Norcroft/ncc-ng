@@ -138,7 +138,9 @@ static void vg_acton_globreg(DeclRhsList *d, Binder *b)
             cc_rerr(bind_err_conflicting_globalreg, b);
         bindxx_(b) = reg;
         globalregistervariable(reg);
+#ifndef TARGET_IS_INTERPRETER
         asm_setregname(reg, symname_(bindsym_(b)));
+#endif
     }
 }
 

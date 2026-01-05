@@ -17,6 +17,8 @@
 
 #include <stddef.h>
 
+#include "toolenv.h"
+
 typedef enum {
     TE_Failed = 0,
     TE_OK,

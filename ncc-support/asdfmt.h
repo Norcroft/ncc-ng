@@ -42,32 +42,33 @@
 #define LANG_PASCAL     2
 #define LANG_FORTRAN77  3
 
-// Item kind codes ("itemsort") written via dbg_hdr(itemsort, length).
-// These values are from Acorn's ASD spec.
+// Item kind codes ("itemsort") stored in low 16 bits of the first word.
+// (High 16 bits are the byte length of the item.)
 #define ITEMSECTION        0x0001  // section
-#define ITEMPROC           0x0002  // procedure
+#define ITEMPROC           0x0002  // procedure/function definition
 #define ITEMENDPROC        0x0003  // endproc
 #define ITEMVAR            0x0004  // variable
 #define ITEMTYPE           0x0005  // type
 #define ITEMSTRUCT         0x0006  // struct
 #define ITEMARRAY          0x0007  // array
-// [INVENTED] subrange (8) and set (9) not used as they're for Pascal. Except
-// type 8 "also serves to describe enumerated types in C". As there are two enum
-// types, it seems plausible 9 may be the second enum type. But which is which?
-#define ITEMENUMC          0x0008  // contiguous-enum - maybe type 8?
-#define ITEMENUMD          0x0009  // discontiguous-enum - maybe type 9?
-
+#define ITEMSUBRANGE       0x0008  // subrange (also used for C enums)
+#define ITEMSET            0x0009  // set
 #define ITEMFILEINFO       0x000A  // fileinfo
+#define ITEMENUMC          0x000B  // contiguous enumeration
+#define ITEMENUMD          0x000C  // discontiguous enumeration
+#define ITEMPROCDECL       0x000D  // procedure/function declaration
+#define ITEMSCOPEBEGIN     0x000E  // begin naming scope
+#define ITEMSCOPEEND       0x000F  // end naming scope
+#define ITEMBITFIELD       0x0010  // bitfield
+#define ITEMDEFINE         0x0011  // macro definition
+#define ITEMUNDEF          0x0012  // macro undefinition
+#define ITEMCLASS          0x0013  // class
+#define ITEMUNION          0x0014  // union
+#define ITEMFPMAPFRAG      0x0020  // FP map fragment
 
-// [INVENTED] These values are made up as I have no documentation...
-#define ITEMUNION          0x000B
-#define ITEMCLASS          0x000C
-#define ITEMBITFIELD       0x000D
-#define ITEMSCOPEBEGIN     0x000E
-#define ITEMSCOPEEND       0x000F
-#define ITEMUNDEF          0x0010
-#define ITEMDEFINE         0x0011
-#define ITEMFPMAPFRAG      0x0012  // Only used if TARGET_HAS_FP_OFFSET_TABLES
+// First word of each item: top 16 bits = byte length, low 16 bits = item code.
+#define asd_len_(w)   ((uint32_t)((w) >> 16))
+#define asd_code_(w)  ((uint16_t)((w) & 0xFFFFu))
 
 // This might be a frame pointer map fragment? For stack unwinding. Who knows!
 // [INVENTED] No clue what the order of this struct should be.
@@ -82,20 +83,28 @@ typedef struct ItemFPMapFragment {
 } ItemFPMapFragment;
 
 // Primitive base types. The groupings are actually in base ten, not hex.
-#define TYPEVOID       0
-#define TYPESBYTE     10
-#define TYPESHALF     11
-#define TYPESWORD     12
-#define TYPEUBYTE     20
-#define TYPEUHALF     21
-#define TYPEUWORD     22
-#define TYPEUDWORD    23 // [INVENTED] Seems the most plausible value.
-#define TYPEFLOAT     30
-#define TYPEDOUBLE    31
-#define TYPEFUNCTION 100
+typedef enum {
+    TYPEVOID        = 0,
+    TYPESBYTE       = 10,
+    TYPESHALF       = 11,
+    TYPESWORD       = 12,
+    TYPEUBYTE       = 20,
+    TYPEUHALF       = 21,
+    TYPEUWORD       = 22,
+    TYPEUDWORD      = 23, // [INVENTED] Seems the most plausible value.
+    TYPEFLOAT       = 30,
+    TYPEDOUBLE      = 31,
+    TYPEFUNCTION    = 100,
+} asd_Type;
 
 // TYPE_TYPEWORD — pack type and pointer depth into one 32-bit field
-#define TYPE_TYPEWORD(TYPE, PTR_COUNT) (((TYPE) << 8) | PTR_COUNT)
+#define TYPE_TYPEWORD(TYPE, PTR_COUNT) (((TYPE) << 8) | (PTR_COUNT))
+
+// TYPE_TYPECODE, TYPE_PTRCOUNT - desconstruct a type.
+#define TYPE_TYPECODE(TYPE) ((TYPE) >> 8)
+#define TYPE_PTRCOUNT(TYPE) ((TYPE) & 0xff)
+
+#define TYPESTRING TYPE_TYPEWORD(TYPEUBYTE, 1)
 
 // Storage classes of variables.
 typedef enum {
@@ -105,7 +114,8 @@ typedef enum {
     C_REG               = 4,
     PASCAL_VAR          = 5,
     FORTRAN_ARGS        = 6,
-    FORTRAN_CHAR_ARGS   = 7
+    FORTRAN_CHAR_ARGS   = 7,
+    C_VAR               = 8, // [INVENTED]
 } StgClass;
 
 // No idea what asd_Address means - its only use it to create NoSaveAddr
@@ -117,3 +127,98 @@ typedef enum {
 // fail to compile. It's most likely a 32-bit int, but it could be zero
 // to create 0-1 = -1.
 typedef int32_t asd_Address;
+
+typedef struct {
+    uint8_t length;
+    const char *namep;
+} asd_String;
+
+typedef struct {
+    uint32_t c;           // length+code word (ITEMSECTION)
+    uint8_t  lang;
+    uint8_t  flags;
+    uint8_t  unused;
+    uint8_t  asdversion;
+
+    uint32_t codestart;
+    uint32_t datastart;
+    uint32_t codesize;
+    uint32_t datasize;
+    uint32_t fileinfo;
+    uint32_t debugsize;
+
+    // Followed by name string OR nsyms depending on lang; keep as packed string.
+    asd_String n;
+} ItemSection;
+
+typedef struct {
+    uint32_t c;           // length+code word (ITEMPROC)
+
+    asd_Type type;        // return type if function, else 0
+    uint32_t args;        // number of arguments
+    uint32_t sourcepos;   // packed source position
+    uint32_t startaddr;   // start of prologue
+    uint32_t entry;       // first instruction of body
+    uint32_t endproc;     // offset of matching endproc item (0 if label)
+    uint32_t fileentry;   // offset of file list entry
+    asd_String n;         // name
+} ItemProc;
+
+typedef struct {
+    uint32_t id;           // length+code word (ITEMVAR)
+
+    asd_Type type;
+    uint32_t sourcepos;
+    uint32_t storageclass;
+    union {
+        uint32_t address; // static/extern: absolute address (relocated)
+        int32_t  offset;  // auto/var args: FP-relative offset; reg vars: reg num
+    } location;
+
+    asd_String n;         // name
+} ItemVar;
+
+typedef struct {
+    uint32_t c;     // length+code word (ITEMTYPE)
+    asd_Type type;
+    asd_String n;
+} ItemType;
+
+// Array bounds are stored as a small tagged value in the ASD tables; `interp.c`
+// expects to access the integer member via `.i`.
+typedef union {
+    int32_t  i;
+    uint32_t u;
+} asd_Bound;
+
+typedef struct {
+    uint32_t  size;
+    uint32_t  arrayflags;
+    uint32_t  basetype;
+    asd_Bound lowerbound;
+    asd_Bound upperbound;
+} ItemArray;
+
+typedef struct {
+    uint32_t offset;
+    asd_Type type;
+    asd_String n;
+} StructField;
+
+typedef struct {
+    uint32_t fields;
+    uint32_t size;
+    StructField fieldtable[0];
+} SUC;
+
+typedef struct {
+    uint32_t c;      // length+code word
+    uint8_t  b[1];   // start of payload (lets interp.c do &ip->b + asd_len_(ip->c))
+
+    // Overlays used by interp.c (layout correctness can be fixed later).
+    ItemArray a;
+    SUC s;
+    ItemType t;
+    ItemVar v;
+    ItemProc p;
+} Item;

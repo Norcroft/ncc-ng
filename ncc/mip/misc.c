@@ -327,7 +327,7 @@ static void unfetch_string_char(int ch)
 
 #endif
 
-static void sstart_string_char(char *s)
+void sstart_string_char(char *s)
 {
     errmsg.height = 0;
     errmsg.pointer = s;
@@ -849,8 +849,6 @@ void pop_fnap_context(void)
     fnap_context = (struct FnApContext*)discard3(fnap_context);
 }
 
-static void ssuperrprintf(va_list a, bool newlineterminate);
-
 /* like cc_msg but takes a compressed string and can be used recursively
  this is just about cc_msg_lookup and they should be unified */
 static void cc_printf(msg_t errorcode, ...)
@@ -864,7 +862,7 @@ static void cc_printf(msg_t errorcode, ...)
     errmsg = save;
 }
 
-static void ssuperrprintf(va_list a, bool newlineterminate)
+void ssuperrprintf(va_list a, bool newlineterminate)
 {
     /* This routine behaves like printf but also recognises escape chars of
      * the form $<char> and acts upon them.   It writes its output to

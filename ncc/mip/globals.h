@@ -386,6 +386,10 @@ extern void reg_setallused(RealRegSet *s);      /* not as nasty as memcpy */
 #endif
 #endif
 
+// From misc.c, but used by C Interpreter.
+extern void ssuperrprintf(va_list a, bool newlineterminate);
+extern void sstart_string_char(char *s);
+
 #define StrEq(a, b) (strcmp((a), (b)) == 0)
 #define StrnEq(a, b, n) (strncmp((a), (b), (n)) == 0)
 

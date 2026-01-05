@@ -4704,8 +4704,10 @@ BinaryR:
 
     /* Now update the CSE state */
 
+#ifndef TARGET_IS_INTERPRETER
     if (corrupts_psr(c))
         cse_corrupt_register(R_PSR);
+#endif
     if (corrupts_r1(c))
         cse_corrupt_register(r1.r);
     if (corrupts_r2(c))

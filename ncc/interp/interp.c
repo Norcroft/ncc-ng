@@ -13,6 +13,7 @@
  */
 
 #include <setjmp.h>
+#include <stdlib.h>
 
 #include "globals.h"
 #include "lex.h"
@@ -43,12 +44,12 @@ int pp_inhashif;
 #else
 FILE *asmstream, *objstream;
 #endif
-bool target_lsbitfirst;
+//bool target_lsbitfirst;
 int32 config;
 char *expr_string;
 
 extern int curchar;
-extern Expr *rd_expr();
+extern Expr *rd_expr(int n);
 
 static Dbg_MCState *cc_dbg_state;
 static Dbg_Environment *cc_dbg_env;
@@ -169,7 +170,7 @@ static void eval_error(char *s, ...)
 {
     va_list a;
     va_start(a, s);
-    sstart_string_char(s); ssuperrprintf(a);
+    sstart_string_char(s); ssuperrprintf(a, true);
     va_end(a);
     cc_msg("\n");
     longjmp(eval_recover, 0);
@@ -199,7 +200,7 @@ static int32 read_with_mcrep(ARMaddress a, int32 m)
             readbyte(cc_dbg_state, &b, a);
             i = (int32)(unsigned32)b;
             if ((m & MCR_SORT_MASK) == MCR_SORT_SIGNED)
-                i = (int32)(h << 24) / (1 << 24);
+                i = (int32)(b << 24) / (1 << 24);
             break;
         default:
             eval_error("read_with_mcrep 0x%8x", m);
@@ -522,6 +523,8 @@ Expr *eval_expr(Expr *e)
         default:
             cc_msg("Unknown op(%d) in $e\n", op, e);
     }
+
+    return NULL;
 }
 
 static void spaces(int i)
@@ -640,7 +643,7 @@ void cc_rd_expr(Dbg_MCState *state, Dbg_Environment *env, char *s, char *format)
     expr_string = s;
     curchar = 0;
 #ifdef USE_PP
-    pp_notesource("<expr>", 0);
+    pp_notesource("<expr>", NULL, false);
 #endif
     nextsym();
     if (setjmp(eval_recover) == 0) {
@@ -895,6 +898,8 @@ static AEop do_cmd_1(Cmd *x)
                     return do_cmd_1(cmd3c_(x));
             }
     }
+
+    return 0;
 }
 
 static Expr *do_cmd(Cmd *x)
@@ -963,11 +968,11 @@ Dbg_Error cc_rd_topdecl(Dbg_MCState *state, Dbg_Environment *env, char *s)
         f = stdin;
         s = "<stdin>";
     }
-    pp_notesource(s, f);
+    pp_notesource(s, f, false);
 #endif
     nextsym();
     while (1) {
-        t = rd_topdecl();
+        t = rd_topdecl(true);
         pr_topdecl(t);
         sp = stack + STACKSIZE;
         if (h0_(t) == s_eof)
@@ -1271,17 +1276,17 @@ extern void cc_init(void)
     SetFeature(Feature_CPP);
 #else
     SetFeature(Feature_ANSI);
-    ClearFeatires3(Feature_PCC, Feature_CPP, Feature_CFront);
+    ClearFeatures3(Feature_PCC, Feature_CPP, Feature_CFront);
 #endif
     expr_string = "";
-    errstate_init();
+    errstate_initialise();
     aetree_init();
-    alloc_init();
+    alloc_initialise();
 #ifndef USE_PP
     for (i = 0; i <= 'z'-'a'; i++)
         pp_pragmavec[i] = -1;
 #else
-    compiler_init();
+//    compiler_init();
     pp_init(&curlex.fl);
 #endif
     var_cc_private_flags = 0;

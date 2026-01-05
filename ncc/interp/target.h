@@ -213,6 +213,17 @@ extern bool ImmediateOperand(int32 n, uint32 op);
 #  endif
 #endif
 
+// Updates to compile with ARM's post-Codemist changes.
+#define TARGET_SUPPORTS_TOOLENVS
+#define TARGET_DOESNT_CHECK_SWIS
+#define TOOLFILENAME "ncc-interp"
+
+#define R_SP                0xdL    /* main stack pointer */
+#define R_PSR               0xfL
+
+#define software_floats_enabled (config & CONFIG_SOFTWARE_FLOATS)
+#define software_doubles_enabled (config & CONFIG_SOFTWARE_DOUBLES)
+
 #endif
 
 /* end of arm/target.h */

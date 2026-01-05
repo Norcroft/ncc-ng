@@ -1160,7 +1160,7 @@ maybeswitchblock :
   }
 }
 
-void Inline_Init() {
+void Inline_Init(void) {
   saved_fns = NULL;
 }
 
@@ -1177,7 +1177,7 @@ static void Inline_CompileOutOfLineCopy(Inline_SavedFn *fn) {
   cg_topdecl2(fn->var_binders, fn->reg_binders);
 }
 
-void Inline_Tidy() {
+void Inline_Tidy(void) {
   SavedFnList *p;
   for (;;) {
     bool emitted = NO;
