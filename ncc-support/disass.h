@@ -23,7 +23,8 @@ typedef enum {
     D_LOADPCREL,    // ldr a1, [pc, #offset]
     D_STOREPCREL,   // str a1, [pc, #offset]
     D_LOAD,         // ldr a1, [v1, #offset] / ldr a1, [v1], #offset
-    D_STORE         // str a1, [v1, #offset] / str a1, [v1], #offset
+    D_STORE,        // str a1, [v1, #offset] / str a1, [v1], #offset
+    D_SWI           // swi
 } dis_cb_type;
 
 // Callback used to print labels on branches, ADR, etc.
@@ -37,7 +38,10 @@ typedef char *(*dis_cb_fn)(dis_cb_type type,
 extern void disass(uint64_t w, uint64_t oldq, const char* buf,
                    void *cb_arg, dis_cb_fn cb);
 
+// Returns instruction length in bytes (so 2 or 4).
+extern int32 disass_16(uint16_t h1, uint16_t h2, uint64_t oldq,
+                       const char* buf, void *cb_arg, dis_cb_fn cb);
+
 extern void disass_sethexprefix(const char* prefix);
 extern void disass_setregnames(const char* regnames[16],
                                const char* fregnames[8]);
-

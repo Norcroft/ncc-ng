@@ -200,7 +200,7 @@ extern int target_scalable(int32 m, int32 n);
 #  define LDM_REGCOUNT_MIN_DEFAULT  3
 #endif
 
-#define TARGET_PREFIX(fname) "__16" ## fname
+#define TARGET_PREFIX(fname) "__16" fname
 
 #ifdef TARGET_HAS_DEBUGGER
 #  ifndef TARGET_HAS_DWARF
@@ -223,6 +223,9 @@ extern int target_scalable(int32 m, int32 n);
 #else
 #  define TOOLFILENAME "tcc"
 #endif
+
+#define TARGET_HAS_INLINE_ASSEMBLER 1
+#define THUMB_INLINE_ASSEMBLER 1
 
 #endif
 

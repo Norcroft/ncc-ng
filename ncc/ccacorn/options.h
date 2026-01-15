@@ -87,7 +87,7 @@
 
 #endif
 
-#define TARGET_ENDIANNESS_CONFIGURABLE
+#define TARGET_ENDIANNESS_CONFIGURABLE 1
 /* #define TARGET_DEFAULT_BIGENDIAN 1 */ /* 1 => bigendian default */
                                          /* 0 => littleendian default */
                                          /* unset => defaults to host */

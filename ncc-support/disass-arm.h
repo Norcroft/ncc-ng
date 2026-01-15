@@ -32,3 +32,13 @@ extern char *emit_mnemonic_with_suffix2(char *p,
                                         const char *suffix1,
                                         const char *suffix2,
                                         unsigned cond);
+
+#ifndef PRETTY_DISASSEMBLY
+# define disass_upper_mnemonics true
+# define disass_apcs_reg_names true
+#else
+# define disass_upper_mnemonics false
+# define disass_apcs_reg_names false
+#endif
+
+extern const char *g_hexprefix;

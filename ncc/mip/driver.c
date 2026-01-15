@@ -308,7 +308,7 @@ static struct EnvTable
        "armlib.o", "hostlib.o", "armlib.o", "", "", ""
      }
 #   else
-#     ifdef TARGET_IS_ARM
+#     if defined(TARGET_IS_ARM) || defined(TARGET_IS_THUMB)
 /* arm_targetted cross_compilation : fortran & pascal not supported */
        { 0, KEY_LINK, 0,
          "/usr/local/lib/arm", "/usr/local/lib/arm", "", "/", "/usr/local/lib/arm", "", "lst",

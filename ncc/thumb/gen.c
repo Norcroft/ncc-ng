@@ -414,7 +414,7 @@ static RealRegister cmp_reg;
 static int32 cmp_value;
 
 static void outop(int32 op, int32 r1, int32 r2, int32 m);
-static int outop0(int32 op, int32 r1, int32 r2, int32 m);
+static bool outop0(int32 op, int32 r1, int32 r2, int32 m);
 static void outop2(int32 op, int32 r1, int32 r2, int32 m);
 static void outop_direct(int32 op, int32 r1, int32 r2, int32 m);
 static void flush_spareregs(int32 mask);

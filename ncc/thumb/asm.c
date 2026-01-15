@@ -286,7 +286,7 @@ void display_assembly_code(Symstr const *name)
         while (label_values != NULL && car_(label_values) < q)
             label_values = (List3 *)label_values->cdr;
         while (label_values != NULL && car_(label_values) == q) {
-            if (label_values->csr < 0) {
+            if ((int32)label_values->csr < 0) {
               if (HasFeature(Feature_Annotate))
                   fprintf(asmstream, "%28s", "");
               fprintf(asmstream, "F%ldL%ld\n",
@@ -490,7 +490,7 @@ static void asm_data(DataInit *p, int constdata)
   int32 offset = 0;
 
   for (; p != 0; p = p->datacdr) {
-    int32 rpt = p->rpt, sort = p->sort, len = p->len;
+    IPtr rpt = p->rpt, sort = p->sort, len = p->len;
     union { unsigned32 l;
             unsigned16 w[2];
             unsigned8 b[4];

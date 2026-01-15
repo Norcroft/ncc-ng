@@ -18,6 +18,6 @@
 // AMP as in SA1500/SA1501. Intel canned that yonks ago, so I can't even
 // be bothered to see if the FP instruction set was documented.
 
-typedef enum { AMP_DisassCP } dissass_addcopro_type;
+typedef enum { AMP_DisassCP } disass_addcopro_type;
 
-extern void disass_addcopro(dissass_addcopro_type copro);
+extern void disass_addcopro(disass_addcopro_type copro);

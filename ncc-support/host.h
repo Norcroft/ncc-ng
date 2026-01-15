@@ -53,7 +53,3 @@
 #define EXIT_fatal 2
 #define EXIT_syserr 3
 #define EXIT_warn 0
-
-// Adding options to simplify things...
-#define TARGET_HAS_INLINE_ASSEMBLER     1
-#define ARM_INLINE_ASSEMBLER            1

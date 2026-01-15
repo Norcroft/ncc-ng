@@ -94,7 +94,7 @@ typedef enum {
     TYPEUDWORD      = 23, // [INVENTED] Seems the most plausible value.
     TYPEFLOAT       = 30,
     TYPEDOUBLE      = 31,
-    TYPEFUNCTION    = 100,
+    TYPEFUNCTION    = 100
 } asd_Type;
 
 // TYPE_TYPEWORD — pack type and pointer depth into one 32-bit field
@@ -115,7 +115,7 @@ typedef enum {
     PASCAL_VAR          = 5,
     FORTRAN_ARGS        = 6,
     FORTRAN_CHAR_ARGS   = 7,
-    C_VAR               = 8, // [INVENTED]
+    C_VAR               = 8  // [INVENTED]
 } StgClass;
 
 // No idea what asd_Address means - its only use it to create NoSaveAddr
@@ -208,7 +208,7 @@ typedef struct {
 typedef struct {
     uint32_t fields;
     uint32_t size;
-    StructField fieldtable[0];
+    StructField fieldtable[1];
 } SUC;
 
 typedef struct {

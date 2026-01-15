@@ -227,6 +227,9 @@ extern bool ImmediateOperand(int32 n, UPtr op);
 #  define TOOLFILENAME "armcc"
 #endif
 
+#define TARGET_HAS_INLINE_ASSEMBLER 1
+#define ARM_INLINE_ASSEMBLER 1
+
 #endif
 
 /* end of arm/target.h */
