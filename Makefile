@@ -6,6 +6,7 @@
 #   make ntcc               	# C compiler (Thumb backend)
 #   make nt++               	# C++ compiler (Thumb backend)
 #   make all                	# ncc & n++
+#   make arm_variants          	# Every ARM/Thumb tool/target/host combination
 #   make clean / make distclean
 
 # ncc and n++ can be compiled to target different plaforms:
@@ -30,7 +31,7 @@ HOST    	?=              # riscos | <blank>
 .DEFAULT_GOAL := ncc
 
 # layout (this Makefile sits immediately above ncc/)
-SRC_ROOT     := 
+SRC_ROOT     :=
 NCC_ROOT     := $(SRC_ROOT)ncc
 BUILD_DIR    := build
 DERIVED_ROOT := $(BUILD_DIR)/derived
@@ -397,8 +398,28 @@ HEADERS_OBJ := $(OBJ_DIR)/headers.o
 
 #
 # top-level goals
-.PHONY: all ncc n++ ntcc nt++ interp clbcomp clean distclean print
+.PHONY: all ncc n++ ntcc nt++ interp clbcomp \
+        arm_variants clean distclean print
 all: ncc n++
+
+# Build every ARM/Thumb tool/target/host combination.
+# The four core tools are: ncc, n++, ntcc, nt++.
+arm_variants:
+	@set -e; \
+	for t in ncc 'n++' ntcc 'nt++'; do \
+		echo "== Building $$t (default TARGET=arm) =="; \
+		$(MAKE) $$t; \
+		echo "== Building $$t (TARGET=riscos) =="; \
+		$(MAKE) $$t TARGET=riscos; \
+		echo "== Building $$t (TARGET=riscos26) =="; \
+		$(MAKE) $$t TARGET=riscos26; \
+		echo "== Building $$t (TARGET=riscos HOST=riscos) =="; \
+		$(MAKE) $$t TARGET=riscos HOST=riscos; \
+		echo "== Building $$t (TARGET=riscos26 HOST=riscos) =="; \
+		$(MAKE) $$t TARGET=riscos26 HOST=riscos; \
+		echo "== Building $$t (TARGET=newton) =="; \
+		$(MAKE) $$t TARGET=newton; \
+	done
 
 ncc:     $(BIN_NCC)
 n++:     $(BIN_NCPP)
