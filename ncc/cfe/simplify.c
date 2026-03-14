@@ -975,6 +975,10 @@ static Expr *optimise1(Expr *e, bool valneeded, bool *pure)
                  * If it could happen, the call to genreftemp / genexprtemp
                  * below would cause trouble, since the temporaries thus
                  * created wouldn't be bound.
+                 *
+                 * (pw) Callers that reach this path must provide an exprtemp
+                 * scope so the temporary can be bound with the right
+                 * lifetime.
                  */
                 if (usefancytemp)
                     gen = (in_args || !valneeded) ? genexprtemp(t) : genreftemp(t);

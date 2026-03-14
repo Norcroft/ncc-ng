@@ -2490,18 +2490,28 @@ static Cmd *meminit_cmd(TagBinder *ctorclass, Binder *ctor,
     }
     {   FileLine fl;
         SynBindList *bl;
+        Expr *body;
         fl = curlex.fl;
         fl.p = dbg_notefileline(fl);
+
+        // optimise0 rewrites the expression, so the exprtemp scope must be kept
+        // alive across this call. So it must be called before popping the
+        // exprtemp scope (which was pushed by our caller, rd_meminit().
+        body = e != NULL ? optimise0(mkcast(s_semicolon, e, te_void)) : NULL;
+
         add_expr_dtors(killexprtemp());
         bl = pop_saved_temps(NULL);
+
         if (expr_dtors != NULL)
-        {   e = commacons(e, expr_dtors);
-            e = mk_exprlet(s_let, te_void, bl, e);
+        {   body = commacons(body, expr_dtors);
+            body = mk_exprlet(s_let, te_void, bl, body);
             expr_dtors = NULL;
             extra_flags = NULL;
+        } else if (body != NULL) {
+            // optimise0 introduces <Anon..> so need to 'let'.
+            body = mk_exprlet(s_let, te_void, bl, body);
         }
-        return e == 0 ? 0 : mk_cmd_e(s_semicolon, fl,
-               optimise0(mkcast(s_semicolon, e, te_void)));
+        return body == 0 ? 0 : mk_cmd_e(s_semicolon, fl, body);
     }
 }
 
